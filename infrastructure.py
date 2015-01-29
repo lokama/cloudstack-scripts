@@ -8,11 +8,11 @@ from ACSConn import CloudStack
 from prettytable import PrettyTable
 
 parser = argparse.ArgumentParser(description='Check Cloudstack status')
-parser.add_argument('--project', action="store_true", help='Resource usage by projects, ordered by name')
-parser.add_argument('--cluster', action="store_true", help='Cluster capacity, ordered by used resources (in %)')
+parser.add_argument('--project', action="store_true", help='Resource usage by projects, ordered by project name')
+parser.add_argument('--cluster', action="store_true", help='Cluster capacity, ordered by used resources')
 parser.add_argument('--vr', action="store_true", help='State and version of Virtual Routers')
 parser.add_argument('--ssvm', action="store_true", help='State of system vms')
-parser.add_argument('--capacity', action="store_true", help='Capacity by zone and type, ordered by used resources (in %)')
+parser.add_argument('--capacity', action="store_true", help='Capacity by zone and type, ordered by used resources')
 parser.add_argument('--region', type=str, default='lab', help='Run the tests on this region')
 args = parser.parse_args()
 
