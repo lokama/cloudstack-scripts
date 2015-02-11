@@ -15,6 +15,7 @@ parser.add_argument('--cluster', action="store_true", help='Cluster capacity, or
 parser.add_argument('--vr', action="store_true", help='State and version of Virtual Routers')
 parser.add_argument('--ssvm', action="store_true", help='State of system vms')
 parser.add_argument('--lb', type=str, help="List LoadBalancer by project or account")
+parser.add_argument('--userdata', action="store_true", help='Show userdata im each VM')
 parser.add_argument('--capacity', action="store_true", help='Capacity by zone and type, ordered by used resources')
 parser.add_argument('--region', type=str, default='lab', help='Run the tests on this region')
 args = parser.parse_args()
@@ -85,11 +86,20 @@ def get_projects(param):
         p_ids.append(p_id[param])
     return p_ids
 
+def get_project_detail(**kwargs):
+    return api.listProjects(kwargs)
 
 def get_network_detail(**kwargs):
     result = api.listNetworks(kwargs)
     if result:
         return result['network'][0]
+
+
+def get_userdata(vmid):
+    result = api.getVirtualMachineUserData({
+        'virtualmachineid': vmid
+    })
+    return result
 
 
 def list_projects():
@@ -220,6 +230,22 @@ def list_loadbalancers():
     return t.get_string(sortby=lst_type.capitalize())
 
 
+def list_userdata():
+    t = PrettyTable(['Project', 'Vm Name', 'VM ID', 'Length'])
+    for project in get_projects('id'):
+        project_name = get_project_detail(id=project, listall='true')['project'][0]['name']
+        result = api.listVirtualMachines({
+            'listall':      'true',
+            'projectid':    project
+        })
+        if 'virtualmachine' in result:
+            for vm in result['virtualmachine']:
+                userdata = get_userdata(vmid=vm['id'])['virtualmachineuserdata']
+                if 'userdata' in userdata:
+                    t.add_row([project_name, vm['name'], vm['id'], len(userdata['userdata'])])
+                    # print project, "vm", vm['name'], len(userdata['userdata'])
+    return t.get_string(sortby="Length", reversesort=True)
+
 if args.project:
     print list_projects()
 elif args.cluster:
@@ -234,3 +260,5 @@ elif args.capacity:
     print list_capacities()
 elif args.lb:
     print list_loadbalancers()
+elif args.userdata:
+    print list_userdata()
