@@ -12,6 +12,7 @@ parser.add_argument('--project', action="store_true", help='Resource usage by pr
 parser.add_argument('--cluster', action="store_true", help='Cluster capacity, ordered by used resources')
 parser.add_argument('--vr', action="store_true", help='State and version of Virtual Routers')
 parser.add_argument('--ssvm', action="store_true", help='State of system vms')
+parser.add_argument('--lb', action="store_true", help="List LoadBalancer by Project/account")
 parser.add_argument('--capacity', action="store_true", help='Capacity by zone and type, ordered by used resources')
 parser.add_argument('--region', type=str, default='lab', help='Run the tests on this region')
 args = parser.parse_args()
@@ -60,6 +61,17 @@ def list_configuration(name):
         'name': name
     })
     return result['configuration']
+
+
+def list_projects_ids():
+    result = api.listProjects({
+        'listall':  'true',
+        'state':    'Active'
+    })
+    p_ids = []
+    for p_id in result['project']:
+        p_ids.append(p_id['id'])
+    return p_ids
 
 
 def list_projects():
@@ -130,6 +142,9 @@ def list_ssvms():
         agent_status = api.listHosts({
             'name':     ssvm['name']
         })
+        # if ssvm is not in running state, the xen host is empty.
+        if not ssvm.has_key('hostname'):
+            ssvm['hostname'] = '-'
         t.add_row([ssvm['name'], agent_status['host'][0]['version'], ssvm['state'], agent_status['host'][0]['state'], ssvm['systemvmtype'], ssvm['zonename'], ssvm['hostname']])
     return t.get_string(sortby="Zone")
 
@@ -141,6 +156,46 @@ def list_capacities():
     for rsc_type in result['capacity']:
         t.add_row([capacity_type[rsc_type['type']], rsc_type['zonename'], float(rsc_type['percentused'])])
     return t.get_string(sortby="Used (%)", reversesort=True)
+
+
+def list_loadbalancers():
+    # account para pegar os balanceadores soltos
+    t = PrettyTable(['Project', 'State', 'Name', 'PublicIP', 'CIDR', 'Network Name', 'Network Domain',  'Additional Networks'])
+    # list all projects with LB
+    for project_id in list_projects_ids():
+        result = api.listLoadBalancerRules({
+            'listall':      'true',
+            'projectid':    project_id
+        })
+        # if project has LB
+        if result:
+            # Get details from network
+            for lb in result['loadbalancerrule']:
+                network_details = network_detail(id=lb['networkid'], projectid=project_id)
+                # get details from additional network(s) in LB
+                additional_network = []
+                if lb['additionalnetworkids']:
+                    for adt_network in lb['additionalnetworkids']:
+                        additional_network.append(network_detail(id=adt_network, projectid=project_id)['name'])
+                t.add_row([lb['project'], lb['state'], lb['name'], lb['publicip'], network_details['cidr'], network_details['name'], network_details['networkdomain'], additional_network])
+    return t.get_string(sortby="Project")
+
+
+def network_detail(id, projectid):
+    result = api.listNetworks({
+        'listall':      'true',
+        'id':           id,
+        'projectid':    projectid
+    })
+    if result:
+        return result['network'][0]
+
+
+def list_accounts():
+    result = api.listAccounts({
+        'listall':  'true'
+    })
+    return result['account']
 
 if args.project:
     print list_projects()
@@ -154,3 +209,5 @@ elif args.ssvm:
     print list_ssvms()
 elif args.capacity:
     print list_capacities()
+elif args.lb:
+    print list_loadbalancers()
