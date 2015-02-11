@@ -147,9 +147,17 @@ def list_vrs():
         'listall':  'true',
         'state':    'Running'
     })
-    t = PrettyTable(['Name', 'State', 'Zone', 'Host', 'Version', 'Netowork Domain', 'Link Local IP', 'Guest IP Addr'])
+    t = PrettyTable(['Name', 'State', 'Zone', 'Host', 'Version', 'Network Domain', 'Networkname', 'Link Local IP', 'Guest IP Addr'])
     for rtr in result['router']:
-        t.add_row([rtr['name'], rtr['state'], rtr['zonename'], rtr['hostname'], rtr['version'], rtr['networkdomain'], rtr['linklocalip'], rtr['guestipaddress']])
+        for device in rtr['nic']:
+            if 'networkname' in device:
+                ntw_name = device['networkname']
+            if 'ip6address' in device:
+                ip_addr = device['ip6address']
+            elif not device['ipaddress'].startswith('169'):
+                ip_addr = device['ipaddress']
+
+        t.add_row([rtr['name'], rtr['state'], rtr['zonename'], rtr['hostname'], rtr['version'], rtr['networkdomain'], ntw_name, rtr['linklocalip'], ip_addr])
     return t.get_string(sortby="Version", reversesort=True)
 
 
@@ -161,7 +169,7 @@ def list_ssvms():
             'name':     ssvm['name']
         })
         # if ssvm is not in running state, the xen host is empty.
-        if not ssvm.has_key('hostname'):
+        if not 'hostname' in ssvm:
             ssvm['hostname'] = '-'
         t.add_row([ssvm['name'], agent_status['host'][0]['version'], ssvm['state'], agent_status['host'][0]['state'], ssvm['systemvmtype'], ssvm['zonename'], ssvm['hostname']])
     return t.get_string(sortby="Zone")
