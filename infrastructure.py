@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# TODO
+# list network by account
 
 import argparse
 import os
@@ -12,7 +14,7 @@ parser.add_argument('--project', action="store_true", help='Resource usage by pr
 parser.add_argument('--cluster', action="store_true", help='Cluster capacity, ordered by used resources')
 parser.add_argument('--vr', action="store_true", help='State and version of Virtual Routers')
 parser.add_argument('--ssvm', action="store_true", help='State of system vms')
-parser.add_argument('--lb', action="store_true", help="List LoadBalancer by Project/account")
+parser.add_argument('--lb', type=str, help="List LoadBalancer by project or account")
 parser.add_argument('--capacity', action="store_true", help='Capacity by zone and type, ordered by used resources')
 parser.add_argument('--region', type=str, default='lab', help='Run the tests on this region')
 args = parser.parse_args()
@@ -82,6 +84,12 @@ def get_projects(param):
     for p_id in result['project']:
         p_ids.append(p_id[param])
     return p_ids
+
+
+def get_network_detail(**kwargs):
+    result = api.listNetworks(kwargs)
+    if result:
+        return result['network'][0]
 
 
 def list_projects():
@@ -170,35 +178,38 @@ def list_capacities():
 
 def list_loadbalancers():
     # account para pegar os balanceadores soltos
-    t = PrettyTable(['Project', 'State', 'Name', 'PublicIP', 'CIDR', 'Network Name', 'Network Domain',  'Additional Networks'])
     # list all projects with LB
-    for project_id in get_projects('id'):
+    if args.lb == 'project':
+        all_lb = get_projects('id')
+        param_type = 'projectid'
+        lst_type = 'project'
+    elif args.lb == 'account':
+        all_lb = get_accounts('name')
+        param_type = 'account'
+        lst_type = 'account'
+    else:
+        print "Invalid lb option\n Use: --lb project or --lb account"
+        sys.exit(1)
+
+    t = PrettyTable([lst_type.capitalize(), 'State', 'Name', 'PublicIP', 'CIDR', 'Network Name', 'Network Domain',  'Additional Networks'])
+
+    for project_id in all_lb:
         result = api.listLoadBalancerRules({
             'listall':      'true',
-            'projectid':    project_id
+            param_type:     project_id
         })
         # if project has LB
         if result:
             # Get details from network
             for lb in result['loadbalancerrule']:
-                network_details = network_detail(id=lb['networkid'], projectid=project_id)
+                network_details = get_network_detail(id=lb['networkid'], **{param_type: project_id})
                 # get details from additional network(s) in LB
                 additional_network = []
                 if lb['additionalnetworkids']:
                     for adt_network in lb['additionalnetworkids']:
-                        additional_network.append(network_detail(id=adt_network, projectid=project_id)['name'])
-                t.add_row([lb['project'], lb['state'], lb['name'], lb['publicip'], network_details['cidr'], network_details['name'], network_details['networkdomain'], additional_network])
-    return t.get_string(sortby="Project")
-
-
-def network_detail(id, projectid):
-    result = api.listNetworks({
-        'listall':      'true',
-        'id':           id,
-        'projectid':    projectid
-    })
-    if result:
-        return result['network'][0]
+                        additional_network.append(get_network_detail(id=adt_network, **{param_type: project_id})['name'])
+                t.add_row([lb[lst_type], lb['state'], lb['name'], lb['publicip'], network_details['cidr'], network_details['name'], network_details['networkdomain'], additional_network])
+    return t.get_string(sortby=lst_type.capitalize())
 
 
 if args.project:
