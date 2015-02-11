@@ -56,21 +56,31 @@ capacity_type = {
 }
 
 
-def list_configuration(name):
+def get_configuration(name):
     result = api.listConfigurations({
         'name': name
     })
     return result['configuration']
 
 
-def list_projects_ids():
+def get_accounts(param):
+    result = api.listAccounts({
+        'listall':  'true'
+    })
+    acc_ids = []
+    for acc_id in result['account']:
+        acc_ids.append(acc_id[param])
+    return acc_ids
+
+
+def get_projects(param):
     result = api.listProjects({
         'listall':  'true',
         'state':    'Active'
     })
     p_ids = []
     for p_id in result['project']:
-        p_ids.append(p_id['id'])
+        p_ids.append(p_id[param])
     return p_ids
 
 
@@ -97,16 +107,16 @@ def list_clusters():
         for r in res['capacity']:
             if (r['type'] == 0):
                 # memory
-                threshold = float(list_configuration('cluster.memory.allocated.capacity.disablethreshold')[0]['value'])
+                threshold = float(get_configuration('cluster.memory.allocated.capacity.disablethreshold')[0]['value'])
             elif (r['type'] == 1):
                 # CPU
-                threshold = float(list_configuration('cluster.cpu.allocated.capacity.disablethreshold')[0]['value'])
+                threshold = float(get_configuration('cluster.cpu.allocated.capacity.disablethreshold')[0]['value'])
             elif (r['type'] == 2):
                 # Storage
-                threshold = float(list_configuration('pool.storage.capacity.disablethreshold')[0]['value'])
+                threshold = float(get_configuration('pool.storage.capacity.disablethreshold')[0]['value'])
             elif (r['type'] == 3):
                 # Allocated Storage
-                threshold = float(list_configuration('pool.storage.allocated.capacity.disablethreshold')[0]['value'])
+                threshold = float(get_configuration('pool.storage.allocated.capacity.disablethreshold')[0]['value'])
             else:
                 threshold = 1
 
@@ -162,7 +172,7 @@ def list_loadbalancers():
     # account para pegar os balanceadores soltos
     t = PrettyTable(['Project', 'State', 'Name', 'PublicIP', 'CIDR', 'Network Name', 'Network Domain',  'Additional Networks'])
     # list all projects with LB
-    for project_id in list_projects_ids():
+    for project_id in get_projects('id'):
         result = api.listLoadBalancerRules({
             'listall':      'true',
             'projectid':    project_id
@@ -190,12 +200,6 @@ def network_detail(id, projectid):
     if result:
         return result['network'][0]
 
-
-def list_accounts():
-    result = api.listAccounts({
-        'listall':  'true'
-    })
-    return result['account']
 
 if args.project:
     print list_projects()
