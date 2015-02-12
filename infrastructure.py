@@ -114,13 +114,13 @@ def list_projects():
     t.align['Project'] = 'l'
     for res in result['project']:
         t.add_row([res['name'], res['account'],
-                  "%s/%s" % (res['cpuavailable'], res['cpulimit']),
-                  "%s/%s" % (int(res['memoryavailable'])/1024, int(res['memorylimit'])/1024),
-                  "%s/%s" % (res['primarystorageavailable'], res['primarystoragelimit']),
-                  "%s/%s" % (res['secondarystorageavailable'], res['secondarystoragelimit']),
-                  "%s/%s" % (res['templateavailable'], res['templatelimit']),
-                  "%s/%s" % (res['vmavailable'], res['vmlimit']),
-                  "%s/%s" % (res['volumeavailable'], res['volumelimit'])])
+                  "%s/%s" % (res['cputotal'], res['cpulimit']),
+                  "%s/%s" % (int(res['memorytotal'])/1024, int(res['memorylimit'])/1024),
+                  "%s/%s" % (res['primarystoragetotal'], res['primarystoragelimit']),
+                  "%s/%s" % (res['secondarystoragetotal'], res['secondarystoragelimit']),
+                  "%s/%s" % (res['templatetotal'], res['templatelimit']),
+                  "%s/%s" % (res['vmtotal'], res['vmlimit']),
+                  "%s/%s" % (res['volumetotal'], res['volumelimit'])])
     return t.get_string(sortby="Project")
 
 
