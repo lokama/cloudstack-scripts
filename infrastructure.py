@@ -15,9 +15,9 @@ parser.add_argument('--cluster', action="store_true", help='Cluster capacity, or
 parser.add_argument('--vr', action="store_true", help='State and version of Virtual Routers')
 parser.add_argument('--ssvm', action="store_true", help='State of system vms')
 parser.add_argument('--lb', type=str, help="List LoadBalancer by project or account")
-parser.add_argument('--userdata', action="store_true", help='Show userdata im each VM')
+parser.add_argument('--userdata', action="store_true", help='Show userdata length for each VM')
 parser.add_argument('--capacity', action="store_true", help='Capacity by zone and type, ordered by used resources')
-parser.add_argument('--region', type=str, default='lab', help='Run the tests on this region')
+parser.add_argument('--region', type=str, default='lab', help='Choose your region based on your cloudmonkey profile. Default profile is "lab"')
 args = parser.parse_args()
 
 
@@ -209,8 +209,7 @@ def list_capacities():
 
 
 def list_loadbalancers():
-    # account para pegar os balanceadores soltos
-    # list all projects with LB
+    # by project or account
     if args.lb == 'project':
         all_lb = get_projects('id')
         param_type = 'projectid'
@@ -259,7 +258,6 @@ def list_userdata():
                 userdata = get_userdata(vmid=vm['id'])['virtualmachineuserdata']
                 if 'userdata' in userdata:
                     t.add_row([project_name, vm['name'], vm['id'], len(userdata['userdata'])])
-                    # print project, "vm", vm['name'], len(userdata['userdata'])
     return t.get_string(sortby="Length", reversesort=True)
 
 if args.project:
@@ -267,7 +265,6 @@ if args.project:
 elif args.cluster:
     print list_clusters()
 elif args.vr:
-    # add flag --running|stopped
     print "List VR's in 'Running' state!"
     print list_vrs()
 elif args.ssvm:
