@@ -181,7 +181,7 @@ def list_vrs():
                     ip_addr = device['ipaddress']
 
         t.add_row([rtr['name'], rtr['state'], rtr['zonename'], rtr['hostname'], rtr['version'], rtr['networkdomain'],
-                  ntw_name, rtr['linklocalip'], ip_addr])
+                  ntw_name, rtr.get('linklocalip'), ip_addr])
     return t.get_string(sortby="Version", reversesort=True)
 
 
