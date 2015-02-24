@@ -15,9 +15,9 @@ parser.add_argument('--cluster', action="store_true", help='Cluster capacity, or
 parser.add_argument('--vr', action="store_true", help='State and version of Virtual Routers')
 parser.add_argument('--ssvm', action="store_true", help='State of system vms')
 parser.add_argument('--lb', type=str, help="List LoadBalancer by project or account")
-parser.add_argument('--userdata', action="store_true", help='Show userdata im each VM')
+parser.add_argument('--userdata', action="store_true", help='Show userdata length for each VM')
 parser.add_argument('--capacity', action="store_true", help='Capacity by zone and type, ordered by used resources')
-parser.add_argument('--region', type=str, default='lab', help='Run the tests on this region')
+parser.add_argument('--region', type=str, default='lab', help='Choose your region based on your cloudmonkey profile. Default profile is "lab"')
 args = parser.parse_args()
 
 
@@ -86,8 +86,10 @@ def get_projects(param):
         p_ids.append(p_id[param])
     return p_ids
 
+
 def get_project_detail(**kwargs):
     return api.listProjects(kwargs)
+
 
 def get_network_detail(**kwargs):
     result = api.listNetworks(kwargs)
@@ -107,10 +109,18 @@ def list_projects():
         'listall':  'true',
         'state':    'Active'
     })
-    t = PrettyTable(['Project', 'Account', 'CPU Available', 'MEM Available (GB)', 'Pri Stg Available (GB)', 'Sec Stg Available (GB)', 'Templates Available', 'VM Available', 'Vol Available'])
+    t = PrettyTable(['Project', 'Account', 'CPU', 'MEM (GB)', 'Pri Stg (GB)', 'Sec Stg (GB)',
+                    'Templates', 'VM', 'Volume'])
     t.align['Project'] = 'l'
     for res in result['project']:
-        t.add_row([res['name'], res['account'], res['cpuavailable'], int(res['memoryavailable'])/1024,    res['primarystorageavailable'], res['secondarystorageavailable'], res['templateavailable'], res['vmavailable'], res['volumeavailable']])
+        t.add_row([res['name'], res['account'],
+                  "%s/%s" % (res['cputotal'], res['cpulimit']),
+                  "%s/%s" % (int(res['memorytotal'])/1024, int(res['memorylimit'])/1024),
+                  "%s/%s" % (res['primarystoragetotal'], res['primarystoragelimit']),
+                  "%s/%s" % (res['secondarystoragetotal'], res['secondarystoragelimit']),
+                  "%s/%s" % (res['templatetotal'], res['templatelimit']),
+                  "%s/%s" % (res['vmtotal'], res['vmlimit']),
+                  "%s/%s" % (res['volumetotal'], res['volumelimit'])])
     return t.get_string(sortby="Project")
 
 
@@ -147,7 +157,8 @@ def list_clusters():
             free_until_hit_threshold = int(((r['capacitytotal'] * threshold) - r['capacityused'])/convert_unit)
             total_free_resource = (r['capacitytotal'] - r['capacityused'])/convert_unit
 
-            t.add_row([res['zonename'], res['name'], res['podname'], capacity_type[r['type']], float(r['percentused']), free_until_hit_threshold, total_free_resource])
+            t.add_row([res['zonename'], res['name'], res['podname'], capacity_type[r['type']], float(r['percentused']),
+                      free_until_hit_threshold, total_free_resource])
 
     return t.get_string(sortby="Used (%)", reversesort=True)
 
@@ -157,7 +168,8 @@ def list_vrs():
         'listall':  'true',
         'state':    'Running'
     })
-    t = PrettyTable(['Name', 'State', 'Zone', 'Host', 'Version', 'Network Domain', 'Networkname', 'Link Local IP', 'Guest IP Addr'])
+    t = PrettyTable(['Name', 'State', 'Zone', 'Host', 'Version', 'Network Domain', 'Networkname', 'Link Local IP',
+                    'Guest IP Addr'])
     for rtr in result['router']:
         for device in rtr['nic']:
             if 'networkname' in device:
@@ -168,7 +180,8 @@ def list_vrs():
                 if not device['ipaddress'].startswith('169'):
                     ip_addr = device['ipaddress']
 
-        t.add_row([rtr['name'], rtr['state'], rtr['zonename'], rtr['hostname'], rtr['version'], rtr['networkdomain'], ntw_name, rtr.get('linklocalip'), ip_addr])
+        t.add_row([rtr['name'], rtr['state'], rtr['zonename'], rtr['hostname'], rtr['version'], rtr['networkdomain'],
+                  ntw_name, rtr['linklocalip'], ip_addr])
     return t.get_string(sortby="Version", reversesort=True)
 
 
@@ -182,7 +195,8 @@ def list_ssvms():
         # if ssvm is not in running state, the xen host is empty.
         if not 'hostname' in ssvm:
             ssvm['hostname'] = '-'
-        t.add_row([ssvm['name'], agent_status['host'][0]['version'], ssvm['state'], agent_status['host'][0]['state'], ssvm['systemvmtype'], ssvm['zonename'], ssvm['hostname']])
+        t.add_row([ssvm['name'], agent_status['host'][0]['version'], ssvm['state'], agent_status['host'][0]['state'],
+                  ssvm['systemvmtype'], ssvm['zonename'], ssvm['hostname']])
     return t.get_string(sortby="Zone")
 
 
@@ -196,8 +210,7 @@ def list_capacities():
 
 
 def list_loadbalancers():
-    # account para pegar os balanceadores soltos
-    # list all projects with LB
+    # by project or account
     if args.lb == 'project':
         all_lb = get_projects('id')
         param_type = 'projectid'
@@ -210,7 +223,8 @@ def list_loadbalancers():
         print "Invalid lb option\n Use: --lb project or --lb account"
         sys.exit(1)
 
-    t = PrettyTable([lst_type.capitalize(), 'State', 'Name', 'PublicIP', 'CIDR', 'Network Name', 'Network Domain',  'Additional Networks'])
+    t = PrettyTable([lst_type.capitalize(), 'State', 'Name', 'PublicIP', 'CIDR', 'Network Name', 'Network Domain',
+                    'Additional Networks'])
 
     for project_id in all_lb:
         result = api.listLoadBalancerRules({
@@ -227,7 +241,8 @@ def list_loadbalancers():
                 if lb['additionalnetworkids']:
                     for adt_network in lb['additionalnetworkids']:
                         additional_network.append(get_network_detail(id=adt_network, **{param_type: project_id})['name'])
-                t.add_row([lb[lst_type], lb['state'], lb['name'], lb['publicip'], network_details['cidr'], network_details['name'], network_details['networkdomain'], additional_network])
+                t.add_row([lb[lst_type], lb['state'], lb['name'], lb['publicip'], network_details['cidr'],
+                          network_details['name'], network_details['networkdomain'], additional_network])
     return t.get_string(sortby=lst_type.capitalize())
 
 
@@ -244,7 +259,6 @@ def list_userdata():
                 userdata = get_userdata(vmid=vm['id'])['virtualmachineuserdata']
                 if 'userdata' in userdata:
                     t.add_row([project_name, vm['name'], vm['id'], len(userdata['userdata'])])
-                    # print project, "vm", vm['name'], len(userdata['userdata'])
     return t.get_string(sortby="Length", reversesort=True)
 
 if args.project:
@@ -252,8 +266,7 @@ if args.project:
 elif args.cluster:
     print list_clusters()
 elif args.vr:
-    # add flag --running|stopped
-    print "List only VR's in 'Running' state!"
+    print "List VR's in 'Running' state!"
     print list_vrs()
 elif args.ssvm:
     print list_ssvms()
