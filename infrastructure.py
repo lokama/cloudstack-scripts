@@ -164,10 +164,11 @@ def list_vrs():
                 ntw_name = device['networkname']
             if 'ip6address' in device:
                 ip_addr = device['ip6address']
-            elif not device['ipaddress'].startswith('169'):
-                ip_addr = device['ipaddress']
+            elif device.get('ipaddress'):
+                if not device['ipaddress'].startswith('169'):
+                    ip_addr = device['ipaddress']
 
-        t.add_row([rtr['name'], rtr['state'], rtr['zonename'], rtr['hostname'], rtr['version'], rtr['networkdomain'], ntw_name, rtr['linklocalip'], ip_addr])
+        t.add_row([rtr['name'], rtr['state'], rtr['zonename'], rtr['hostname'], rtr['version'], rtr['networkdomain'], ntw_name, rtr.get('linklocalip'), ip_addr])
     return t.get_string(sortby="Version", reversesort=True)
 
 
