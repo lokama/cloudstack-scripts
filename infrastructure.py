@@ -166,7 +166,6 @@ def list_clusters():
 def list_vrs():
     result = api.listRouters({
         'listall':  'true',
-        'state':    'Running'
     })
     t = PrettyTable(['Name', 'State', 'Zone', 'Host', 'Version', 'Network Domain', 'Networkname', 'Link Local IP',
                     'Guest IP Addr'])
@@ -180,7 +179,7 @@ def list_vrs():
                 if not device['ipaddress'].startswith('169'):
                     ip_addr = device['ipaddress']
 
-        t.add_row([rtr['name'], rtr['state'], rtr['zonename'], rtr['hostname'], rtr['version'], rtr['networkdomain'],
+        t.add_row([rtr.get('name'), rtr.get('state'), rtr.get('zonename'), rtr.get('hostname'), rtr.get('version'), rtr.get('networkdomain'),
                   ntw_name, rtr.get('linklocalip'), ip_addr])
     return t.get_string(sortby="Version", reversesort=True)
 
