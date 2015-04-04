@@ -26,22 +26,17 @@ parser = SafeConfigParser()
 parser.read(os.path.expanduser('~/.cloudmonkey/config'))
 if parser.has_section(args.region):
     if not parser.has_option(args.region, 'url'):
-        print "There is no url option in '%s' section" % args.region
-        sys.exit(1)
+        sys.exit("There is no url option in '%s' section" % args.region)
     if not parser.has_option(args.region, 'apikey'):
-        print "There is no 'apikey' option in '%s' section" % args.region
-        sys.exit(1)
+        sys.exit("There is no 'apikey' option in '%s' section" % args.region)
     if not parser.has_option(args.region, 'secretkey'):
-        print "There is no 'secretkey' option in '%s' section" % args.region
-        sys.exit(1)
+        sys.exit("There is no 'secretkey' option in '%s' section" % args.region)
 
     apikey = parser.get(args.region, 'apikey')
     api_url = parser.get(args.region, 'url')
     secretkey = parser.get(args.region, 'secretkey')
 else:
-    print "Invalid region: '%s'" % args.region
-    sys.exit(1)
-
+    sys.exit("Invalid region: '%s'" % args.region)
 api = CloudStack(api_url, apikey, secretkey)
 
 capacity_type = {
@@ -183,7 +178,6 @@ def list_vrs():
                   ntw_name, rtr['linklocalip'], ip_addr])
     return t.get_string(sortby="Version", reversesort=True)
 
-
 def list_ssvms():
     result = api.listSystemVms({})
     t = PrettyTable(['Name', 'Version', 'State', 'Agent', 'Type', 'Zone', 'Host'])
@@ -219,8 +213,7 @@ def list_loadbalancers():
         param_type = 'account'
         lst_type = 'account'
     else:
-        print "Invalid lb option\n Use: --lb project or --lb account"
-        sys.exit(1)
+        sys.exit("Invalid lb option\n Use: --lb project or --lb account")
 
     t = PrettyTable([lst_type.capitalize(), 'State', 'Name', 'PublicIP', 'CIDR', 'Network Name', 'Network Domain',
                     'Additional Networks'])
