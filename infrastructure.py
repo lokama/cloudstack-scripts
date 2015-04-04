@@ -159,24 +159,35 @@ def list_clusters():
 
 
 def list_vrs():
+    # show project
     result = api.listRouters({
         'listall':  'true',
-        'state':    'Running'
     })
     t = PrettyTable(['Name', 'State', 'Zone', 'Host', 'Version', 'Network Domain', 'Networkname', 'Link Local IP',
                     'Guest IP Addr'])
-    for rtr in result['router']:
-        for device in rtr['nic']:
-            if 'networkname' in device:
-                ntw_name = device['networkname']
-            if 'ip6address' in device:
-                ip_addr = device['ip6address']
-            elif not device['ipaddress'].startswith('169'):
-                ip_addr = device['ipaddress']
+    if 'router' in result:
+        for rtr in result['router']:
+            if 'hostname' not in rtr:
+                rtr['hostname'] = 'N/A'
+            if 'linklocalip' not in rtr:
+                rtr['linklocalip'] = 'N/A'
+            if 'networkdomain' not in rtr:
+                rtr['networkdomain'] = 'N/A'
+            for device in rtr['nic']:
+                if 'networkname' in device:
+                    ntw_name = device['networkname']
+                if 'ip6address' in device:
+                    ip_addr = device['ip6address']
+                if 'ipaddress' in device:
+                    if not device['ipaddress'].startswith('169'):
+                        ip_addr = device['ipaddress']
 
-        t.add_row([rtr['name'], rtr['state'], rtr['zonename'], rtr['hostname'], rtr['version'], rtr['networkdomain'],
-                  ntw_name, rtr['linklocalip'], ip_addr])
-    return t.get_string(sortby="Version", reversesort=True)
+            t.add_row([rtr['name'], rtr['state'], rtr['zonename'], rtr['hostname'], rtr['version'],
+                      rtr['networkdomain'], ntw_name, rtr['linklocalip'], ip_addr])
+        return t.get_string(sortby="Version", reversesort=True)
+    else:
+        sys.exit("There is no VR's in this region")
+
 
 def list_ssvms():
     result = api.listSystemVms({})
@@ -258,7 +269,6 @@ if args.project:
 elif args.cluster:
     print list_clusters()
 elif args.vr:
-    print "List VR's in 'Running' state!"
     print list_vrs()
 elif args.ssvm:
     print list_ssvms()
