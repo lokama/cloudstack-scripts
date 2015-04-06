@@ -103,6 +103,8 @@ def get_userdata(vmid):
     })
     return result
 
+def percentage(part, whole):
+  return 100 * int(part)/int(whole)
 
 def list_projects():
     result = api.listProjects({
@@ -114,13 +116,13 @@ def list_projects():
     t.align['Project'] = 'l'
     for res in result['project']:
         t.add_row([res['name'], res['account'],
-                  "%s/%s" % (res['cputotal'], res['cpulimit']),
-                  "%s/%s" % (int(res['memorytotal'])/1024, int(res['memorylimit'])/1024),
-                  "%s/%s" % (res['primarystoragetotal'], res['primarystoragelimit']),
-                  "%s/%s" % (res['secondarystoragetotal'], res['secondarystoragelimit']),
-                  "%s/%s" % (res['templatetotal'], res['templatelimit']),
-                  "%s/%s" % (res['vmtotal'], res['vmlimit']),
-                  "%s/%s" % (res['volumetotal'], res['volumelimit'])])
+                  "%s/%s (%s" % (res['cputotal'], res['cpulimit'], percentage((res['cputotal']), (res['cpulimit']))) + "%)",
+                  "%s/%s (%s" % (int(res['memorytotal'])/1024, int(res['memorylimit'])/1024, percentage(int(res['memorytotal'])/1024, int(res['memorylimit'])/1024)) + "%)",
+                  "%s/%s (%s" % (res['primarystoragetotal'], res['primarystoragelimit'], percentage((res['primarystoragetotal']), (res['primarystoragelimit']))) + "%)",
+                  "%s/%s (%s" % (res['secondarystoragetotal'], res['secondarystoragelimit'], percentage((res['secondarystoragetotal']), (res['secondarystoragelimit']))) + "%)",
+                  "%s/%s (%s" % (res['templatetotal'], res['templatelimit'], percentage((res['templatetotal']), (res['templatelimit']))) + "%)",
+                  "%s/%s (%s" % (res['vmtotal'], res['vmlimit'], percentage((res['vmtotal']), (res['vmlimit']))) + "%)",
+                  "%s/%s (%s" % (res['volumetotal'], res['volumelimit'], percentage((res['volumetotal']), (res['volumelimit']))) + "%)"])
     return t.get_string(sortby="Project")
 
 
