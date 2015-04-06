@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # TODO
-# list network by account
+# list networks by account
+# list project associated to VR's/network
 
 import argparse
 import os
@@ -16,8 +17,12 @@ parser.add_argument('--vr', action="store_true", help='State and version of Virt
 parser.add_argument('--ssvm', action="store_true", help='State of system vms')
 parser.add_argument('--lb', type=str, help="List LoadBalancer by project or account")
 parser.add_argument('--userdata', action="store_true", help='Show userdata length for each VM')
+parser.add_argument('--reset_userdata', type=str, help='Reset userdata by project id or vm id')
 parser.add_argument('--capacity', action="store_true", help='Capacity by zone and type, ordered by used resources')
 parser.add_argument('--region', type=str, default='lab', help='Choose your region based on your cloudmonkey profile. Default profile is "lab"')
+parser.add_argument('--vm', action="store_true", help='List VMs by host')
+
+
 args = parser.parse_args()
 
 
@@ -76,14 +81,21 @@ def get_projects(param):
         'listall':  'true',
         'state':    'Active'
     })
-    p_ids = []
-    for p_id in result['project']:
-        p_ids.append(p_id[param])
-    return p_ids
+    if 'project' in result:
+        p_ids = []
+        for p_id in result['project']:
+            p_ids.append(p_id[param])
+        return p_ids
+    else:
+        sys.exit("There is no projects on this region!")
 
 
 def get_project_detail(**kwargs):
-    return api.listProjects(kwargs)
+        return api.listProjects(kwargs)
+
+
+def get_vm_detail(**kwargs):
+    return api.listVirtualMachine(kwargs)
 
 
 def get_network_detail(**kwargs):
@@ -95,6 +107,14 @@ def get_network_detail(**kwargs):
 def get_userdata(vmid):
     result = api.getVirtualMachineUserData({
         'virtualmachineid': vmid
+    })
+    return result
+
+
+def reset_userdata_by_vm_id(vm_id):
+    result = api.updateVirtualMachine({
+        'userdata':     'ZWNobwo=',
+        'id':           vm_id
     })
     return result
 
@@ -249,10 +269,28 @@ def list_loadbalancers():
     return t.get_string(sortby=lst_type.capitalize())
 
 
+def list_vms():
+    t = PrettyTable(['Project', 'Hostname', 'displayname', 'instancename'])
+    for project in get_projects('id'):
+        project_name = get_project_detail(id=project, listall='true')['project'][0]['name']
+        print "Getting VM list from project '%s'" % project_name
+        result = api.listVirtualMachines({
+            'listall':      'true',
+            'projectid':    project
+        })
+        if 'virtualmachine' in result:
+            for vm in result['virtualmachine']:
+                if 'hostname' in vm:
+                    t.add_row([project_name, vm['hostname'], vm['displayname'], vm['instancename']])
+    return t.get_string(sortby="Hostname")
+
+
 def list_userdata():
+    # list by project
     t = PrettyTable(['Project', 'Vm Name', 'VM ID', 'Length'])
     for project in get_projects('id'):
         project_name = get_project_detail(id=project, listall='true')['project'][0]['name']
+        print "Getting userdata from project '%s' (id:%s)" % (project_name, project)
         result = api.listVirtualMachines({
             'listall':      'true',
             'projectid':    project
@@ -263,6 +301,27 @@ def list_userdata():
                 if 'userdata' in userdata:
                     t.add_row([project_name, vm['name'], vm['id'], len(userdata['userdata'])])
     return t.get_string(sortby="Length", reversesort=True)
+
+
+def reset_userdata(project_id):
+        if 'project' in get_project_detail(id=project_id, listall='true'):
+            project_name = get_project_detail(id=project_id, listall='true')['project'][0]['name']
+        else:
+            sys.exit("There is no project with id: '%s'" % project_id)
+
+        shall = raw_input("Remove userdata from _all_ VM's on project '%s' (y/N) " % project_name).lower() == 'y'
+        if shall:
+            result = api.listVirtualMachines({
+                'listall':      'true',
+                'projectid':    project_id
+            })
+            if result:
+                for vm in result['virtualmachine']:
+                    userdata = get_userdata(vmid=vm['id'])['virtualmachineuserdata']
+                    if 'userdata' in userdata:
+                        print "Reseting userdata from vm: %s" % (vm['name'])
+                        reset_userdata_by_vm_id(vm['id'])
+
 
 if args.project:
     print list_projects()
@@ -278,3 +337,10 @@ elif args.lb:
     print list_loadbalancers()
 elif args.userdata:
     print list_userdata()
+elif args.vm:
+    print list_vms()
+elif args.reset_userdata:
+    if len(args.reset_userdata.split("-")) != 5:
+        print len(args.reset_userdata.split("-"))
+        sys.exit("The id provided does not look like an uuid")
+    reset_userdata(args.reset_userdata)
