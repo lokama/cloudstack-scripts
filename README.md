@@ -32,3 +32,25 @@ Helpful cloudstack script(s) to show what's going on with your resources on clou
 
 	$ pip install -r requirements.txt
 
+## Executing script
+
+```
+$ ./infrastructure.py -h
+usage: infrastructure.py [-h] [--project] [--cluster] [--vr] [--ssvm]
+                         [--lb LB] [--userdata] [--capacity] [--region REGION]
+
+Check Cloudstack status
+
+optional arguments:
+  -h, --help       show this help message and exit
+  --project        Resource usage by projects, ordered by project name
+  --cluster        Cluster capacity, ordered by used resources
+  --vr             State and version of Virtual Routers
+  --ssvm           State of system vms
+  --lb LB          List LoadBalancer by project or account
+  --userdata       Show userdata length for each VM
+  --capacity       Capacity by zone and type, ordered by used resources
+  --region REGION  Choose your region based on your cloudmonkey profile.
+                   Default profile is "lab"
+```
+
