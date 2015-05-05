@@ -10,6 +10,7 @@ from ACSConn import CloudStack
 from prettytable import PrettyTable
 
 parser = argparse.ArgumentParser(description='Check Cloudstack status')
+parser.add_argument('--vm', action="store_true", help='List virtualmachine with ordering option (--order)')
 parser.add_argument('--project', action="store_true", help='Resource usage by projects, ordered by project name')
 parser.add_argument('--cluster', action="store_true", help='Cluster capacity, ordered by used resources')
 parser.add_argument('--vr', action="store_true", help='State and version of Virtual Routers')
@@ -18,6 +19,7 @@ parser.add_argument('--lb', type=str, help="List LoadBalancer by project or acco
 parser.add_argument('--userdata', action="store_true", help='Show userdata length for each VM')
 parser.add_argument('--capacity', action="store_true", help='Capacity by zone and type, ordered by used resources')
 parser.add_argument('--region', type=str, default='lab', help='Choose your region based on your cloudmonkey profile. Default profile is "lab"')
+parser.add_argument('--order', type=str, help='Argument with --vm to order by Name, State, Hostname, Service Offering or Zone. Default is Project')
 args = parser.parse_args()
 
 
@@ -262,6 +264,25 @@ def list_userdata():
                     t.add_row([project_name, vm['name'], vm['id'], len(userdata['userdata'])])
     return t.get_string(sortby="Length", reversesort=True)
 
+
+def list_vms():
+    t = PrettyTable(['Project', 'Name', 'ID', 'State', 'Hostname', 'Service Offering', 'Zone'])
+    for project in get_projects('id'):
+        project_name = get_project_detail(id=project, listall='true')['project'][0]['name']
+        result = api.listVirtualMachines({
+            'listall':      'true',
+            'projectid':    project
+        })
+        if 'virtualmachine' in result:
+            for vm in result['virtualmachine']:
+                if not 'hostname' in vm:
+                    vm['hostname'] = '-'
+                t.add_row([project_name, vm['name'], vm['id'], vm['state'], vm['hostname'], vm['serviceofferingname'], vm['zonename']])
+    if args.order:
+        return t.get_string(sortby=args.order)
+    else:
+        return t.get_string(sortby="Project")
+
 if args.project:
     print list_projects()
 elif args.cluster:
@@ -277,3 +298,5 @@ elif args.lb:
     print list_loadbalancers()
 elif args.userdata:
     print list_userdata()
+elif args.vm:
+    print list_vms()

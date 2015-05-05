@@ -36,13 +36,15 @@ Helpful cloudstack script(s) to show what's going on with your resources on clou
 
 ```
 $ ./infrastructure.py -h
-usage: infrastructure.py [-h] [--project] [--cluster] [--vr] [--ssvm]
+usage: infrastructure.py [-h] [--vm] [--project] [--cluster] [--vr] [--ssvm]
                          [--lb LB] [--userdata] [--capacity] [--region REGION]
+                         [--order ORDER]
 
 Check Cloudstack status
 
 optional arguments:
   -h, --help       show this help message and exit
+  --vm             List virtualmachine with ordering option (--order)
   --project        Resource usage by projects, ordered by project name
   --cluster        Cluster capacity, ordered by used resources
   --vr             State and version of Virtual Routers
@@ -52,5 +54,7 @@ optional arguments:
   --capacity       Capacity by zone and type, ordered by used resources
   --region REGION  Choose your region based on your cloudmonkey profile.
                    Default profile is "lab"
+  --order ORDER    Argument with --vm to order by Name, State, Hostname,
+                   Service Offering or Zone. Default is Project
 ```
 
