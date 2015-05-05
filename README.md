@@ -1,6 +1,6 @@
 ## Overview
 
-Helpful cloudstack script(s) to show what's going on with your resources on cloudsatck.
+Helpful cloudstack script(s) to show what's going on with your resources on cloudstack.
 
 ## Features
 
@@ -21,7 +21,7 @@ Helpful cloudstack script(s) to show what's going on with your resources on clou
 * List load balancer by project or account
 
 ### Virtual Machines
-* List virtual machines and its details (hypervisor host, project)
+* List virtual machines and its details (hypervisor, host, project)
 
 ## Requirements
 
