@@ -12,6 +12,7 @@ from ACSConn import CloudStack
 from prettytable import PrettyTable
 
 parser = argparse.ArgumentParser(description='Check Cloudstack status')
+parser.add_argument('--vm', action="store_true", help='List virtualmachine with ordering option (--order)')
 parser.add_argument('--project', action="store_true", help='Resource usage by projects, ordered by project name')
 parser.add_argument('--cluster', action="store_true", help='Cluster capacity, ordered by used resources')
 parser.add_argument('--vr', action="store_true", help='State and version of Virtual Routers')
@@ -21,9 +22,7 @@ parser.add_argument('--userdata', action="store_true", help='Show userdata lengt
 parser.add_argument('--reset_userdata', type=str, help='Reset userdata by project id or vm id')
 parser.add_argument('--capacity', action="store_true", help='Capacity by zone and type, ordered by used resources')
 parser.add_argument('--region', type=str, default='lab', help='Choose your region based on your cloudmonkey profile. Default profile is "lab"')
-parser.add_argument('--vm', action="store_true", help='List VMs by host')
-
-
+parser.add_argument('--order', type=str, help='Argument with --vm to order by Name, State, Hostname, Service Offering or Zone. Default is Project')
 args = parser.parse_args()
 
 
@@ -111,6 +110,8 @@ def get_userdata(vmid):
     })
     return result
 
+def percentage(part, whole):
+  return 100 * int(part)/int(whole)
 
 def reset_userdata_by_vm_id(vm_id):
     result = api.updateVirtualMachine({
@@ -130,13 +131,13 @@ def list_projects():
     t.align['Project'] = 'l'
     for res in result['project']:
         t.add_row([res['name'], res['account'],
-                  "%s/%s" % (res['cputotal'], res['cpulimit']),
-                  "%s/%s" % (int(res['memorytotal'])/1024, int(res['memorylimit'])/1024),
-                  "%s/%s" % (res['primarystoragetotal'], res['primarystoragelimit']),
-                  "%s/%s" % (res['secondarystoragetotal'], res['secondarystoragelimit']),
-                  "%s/%s" % (res['templatetotal'], res['templatelimit']),
-                  "%s/%s" % (res['vmtotal'], res['vmlimit']),
-                  "%s/%s" % (res['volumetotal'], res['volumelimit'])])
+                  "%s/%s (%s" % (res['cputotal'], res['cpulimit'], percentage((res['cputotal']), (res['cpulimit']))) + "%)",
+                  "%s/%s (%s" % (int(res['memorytotal'])/1024, int(res['memorylimit'])/1024, percentage(int(res['memorytotal'])/1024, int(res['memorylimit'])/1024)) + "%)",
+                  "%s/%s (%s" % (res['primarystoragetotal'], res['primarystoragelimit'], percentage((res['primarystoragetotal']), (res['primarystoragelimit']))) + "%)",
+                  "%s/%s (%s" % (res['secondarystoragetotal'], res['secondarystoragelimit'], percentage((res['secondarystoragetotal']), (res['secondarystoragelimit']))) + "%)",
+                  "%s/%s (%s" % (res['templatetotal'], res['templatelimit'], percentage((res['templatetotal']), (res['templatelimit']))) + "%)",
+                  "%s/%s (%s" % (res['vmtotal'], res['vmlimit'], percentage((res['vmtotal']), (res['vmlimit']))) + "%)",
+                  "%s/%s (%s" % (res['volumetotal'], res['volumelimit'], percentage((res['volumetotal']), (res['volumelimit']))) + "%)"])
     return t.get_string(sortby="Project")
 
 
@@ -186,6 +187,7 @@ def list_vrs():
     })
     t = PrettyTable(['Name', 'State', 'Zone', 'Host', 'Version', 'Network Domain', 'Networkname', 'Link Local IP',
                     'Guest IP Addr'])
+
     if 'router' in result:
         for rtr in result['router']:
             if 'hostname' not in rtr:
@@ -208,6 +210,20 @@ def list_vrs():
         return t.get_string(sortby="Version", reversesort=True)
     else:
         sys.exit("There is no VR's in this region")
+
+    for rtr in result['router']:
+        for device in rtr['nic']:
+            if 'networkname' in device:
+                ntw_name = device['networkname']
+            if 'ip6address' in device:
+                ip_addr = device['ip6address']
+            elif device.get('ipaddress'):
+                if not device['ipaddress'].startswith('169'):
+                    ip_addr = device['ipaddress']
+
+        t.add_row([rtr.get('name'), rtr.get('state'), rtr.get('zonename'), rtr.get('hostname'), rtr.get('version'), rtr.get('networkdomain'),
+                  ntw_name, rtr.get('linklocalip'), ip_addr])
+    return t.get_string(sortby="Version", reversesort=True)
 
 
 def list_ssvms():
@@ -322,6 +338,25 @@ def reset_userdata(project_id):
                     if 'userdata' in userdata:
                         print "Reseting userdata from vm: %s" % (vm['name'])
                         reset_userdata_by_vm_id(vm['id'])
+
+
+def list_vms():
+    t = PrettyTable(['Project', 'Name', 'ID', 'State', 'Hostname', 'Service Offering', 'Zone'])
+    for project in get_projects('id'):
+        project_name = get_project_detail(id=project, listall='true')['project'][0]['name']
+        result = api.listVirtualMachines({
+            'listall':      'true',
+            'projectid':    project
+        })
+        if 'virtualmachine' in result:
+            for vm in result['virtualmachine']:
+                if not 'hostname' in vm:
+                    vm['hostname'] = '-'
+                t.add_row([project_name, vm['name'], vm['id'], vm['state'], vm['hostname'], vm['serviceofferingname'], vm['zonename']])
+    if args.order:
+        return t.get_string(sortby=args.order)
+    else:
+        return t.get_string(sortby="Project")
 
 
 if args.project:
