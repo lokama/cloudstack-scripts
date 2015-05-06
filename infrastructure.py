@@ -6,6 +6,7 @@
 import argparse
 import os
 import sys
+import uuid
 from ConfigParser import SafeConfigParser
 from ACSConn import CloudStack
 from prettytable import PrettyTable
@@ -340,7 +341,8 @@ elif args.userdata:
 elif args.vm:
     print list_vms()
 elif args.reset_userdata:
-    if len(args.reset_userdata.split("-")) != 5:
-        print len(args.reset_userdata.split("-"))
+    try:
+        uuid.UUID(args.reset_userdata, version=4)
+        reset_userdata(args.reset_userdata)
+    except ValueError:
         sys.exit("The id provided does not look like an uuid")
-    reset_userdata(args.reset_userdata)
