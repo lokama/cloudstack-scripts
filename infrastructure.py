@@ -316,7 +316,8 @@ def show_loadbalancers():
                 additional_network = []
                 if lb['additionalnetworkids']:
                     for adt_network in lb['additionalnetworkids']:
-                        additional_network.append(ntw.get_detail(id=adt_network, **{param_type: project_id})['name'])[0]
+                        print ntw.get_detail(id=adt_network, **{param_type: project_id})[0]['name']
+                        additional_network.append(str(ntw.get_detail(id=adt_network, **{param_type: project_id})[0]['name']))
                 t.add_row([lb[lst_type], lb['state'], lb['name'], lb['publicip'], network_details['cidr'],
                           network_details['name'], network_details['networkdomain'], additional_network])
     return t.get_string(sortby=lst_type.capitalize())
