@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 # TODO
-# list networks by account
-# list project associated to VR's/network
 
 import argparse
 import os
@@ -21,8 +19,11 @@ parser.add_argument('--lb', type=str, help="List LoadBalancer by project or acco
 parser.add_argument('--userdata', action="store_true", help='Show userdata length for each VM')
 parser.add_argument('--reset_userdata', type=str, help='Reset userdata by project id or vm id')
 parser.add_argument('--capacity', action="store_true", help='Capacity by zone and type, ordered by used resources')
-parser.add_argument('--region', type=str, default='lab', help='Choose your region based on your cloudmonkey profile. Default profile is "lab"')
-parser.add_argument('--order', type=str, help='Argument with --vm to order by Name, State, Hostname, Service Offering or Zone. Default is Project')
+parser.add_argument('--network', action="store_true", help='List networks all networks')
+parser.add_argument('--region', type=str, default='lab',
+                    help='Choose your region based on your cloudmonkey profile. Default profile is "lab"')
+parser.add_argument('--order', type=str,
+                    help='Argument with --vm to order by Name, State, Hostname, Service Offering or Zone. Default is Project')
 args = parser.parse_args()
 
 
@@ -59,109 +60,155 @@ capacity_type = {
 }
 
 
-def get_configuration(name):
-    result = api.listConfigurations({
-        'name': name
-    })
-    return result['configuration']
+class Configurations(object):
+    'Global Settings from ACS'
+
+    def get(self, name):
+        result = api.listConfigurations({
+            'name': name
+        })
+        return result['configuration'][0]
 
 
-def get_accounts(param):
-    result = api.listAccounts({
-        'listall':  'true'
-    })
-    acc_ids = []
-    for acc_id in result['account']:
-        acc_ids.append(acc_id[param])
-    return acc_ids
+class Accounts(object):
+    'Accounts'
+
+    def old_list_all(self, param):
+        result = api.listAccounts({
+            'listall':  'true'
+        })
+        acc_ids = []
+        for acc_id in result['account']:
+            acc_ids.append(acc_id[param])
+        return acc_ids
+
+    def list_all(self):
+        return api.listAccounts({
+            'listall':  'true'
+        })
 
 
-def get_projects(param):
-    result = api.listProjects({
-        'listall':  'true',
-        'state':    'Active'
-    })
-    if 'project' in result:
-        p_ids = []
-        for p_id in result['project']:
-            p_ids.append(p_id[param])
-        return p_ids
-    else:
-        sys.exit("There is no projects on this region!")
+class Projects(object):
+    'Projects'
 
+    def get(self, param):
+        result = api.listProjects({
+            'listall':  'true',
+            'state':    'Active'
+        })
+        if 'project' in result:
+            p_ids = []
+            for p_id in result['project']:
+                p_ids.append(p_id[param])
+            return p_ids
+        else:
+            sys.exit("There is no projects on this region!")
 
-def get_project_detail(**kwargs):
+    def detail(self, **kwargs):
         return api.listProjects(kwargs)
 
-
-def get_vm_detail(**kwargs):
-    return api.listVirtualMachine(kwargs)
-
-
-def get_network_detail(**kwargs):
-    result = api.listNetworks(kwargs)
-    if result:
-        return result['network'][0]
+    def list_all(self):
+        return api.listProjects({
+            'listall':  'true',
+            'state':    'Active'
+        })
 
 
-def get_userdata(vmid):
-    result = api.getVirtualMachineUserData({
-        'virtualmachineid': vmid
-    })
-    return result
+class VMs(object):
+    'VMs'
+
+    def list(self, project_id):
+        result = api.listVirtualMachines({
+            'listall':      'true',
+            'projectid':    project_id
+        })
+        return result
+
+
+class UserData(object):
+    'Userdata actions'
+
+    def get(self, vm_id):
+        result = api.getVirtualMachineUserData({
+            'virtualmachineid': vm_id
+        })
+        return result
+
+    def reset(self, vm_id):
+        result = api.updateVirtualMachine({
+            'userdata':     'ZWNobwo=',
+            'id':           vm_id
+        })
+        return result
+
+
+class Networks(object):
+    'Networks by account and project'
+
+    def get(self, project_id):
+        return api.listNetworks({
+            'projectid':    project_id,
+            'listall':      'true'
+        })
+
+    def get_detail(self, **kwargs):
+        result = api.listNetworks(kwargs)
+        if result:
+            # return result['network'][0]
+            return result['network']
+
 
 def percentage(part, whole):
-  return 100 * int(part)/int(whole)
-
-def reset_userdata_by_vm_id(vm_id):
-    result = api.updateVirtualMachine({
-        'userdata':     'ZWNobwo=',
-        'id':           vm_id
-    })
-    return result
+    return 100 * int(part)/int(whole)
 
 
-def list_projects():
-    result = api.listProjects({
-        'listall':  'true',
-        'state':    'Active'
-    })
+def show_projects_usage():
+    pjt = Projects()
+    result = pjt.list_all()
     t = PrettyTable(['Project', 'Account', 'CPU', 'MEM (GB)', 'Pri Stg (GB)', 'Sec Stg (GB)',
                     'Templates', 'VM', 'Volume'])
     t.align['Project'] = 'l'
     for res in result['project']:
         t.add_row([res['name'], res['account'],
-                  "%s/%s (%s" % (res['cputotal'], res['cpulimit'], percentage((res['cputotal']), (res['cpulimit']))) + "%)",
-                  "%s/%s (%s" % (int(res['memorytotal'])/1024, int(res['memorylimit'])/1024, percentage(int(res['memorytotal'])/1024, int(res['memorylimit'])/1024)) + "%)",
-                  "%s/%s (%s" % (res['primarystoragetotal'], res['primarystoragelimit'], percentage((res['primarystoragetotal']), (res['primarystoragelimit']))) + "%)",
-                  "%s/%s (%s" % (res['secondarystoragetotal'], res['secondarystoragelimit'], percentage((res['secondarystoragetotal']), (res['secondarystoragelimit']))) + "%)",
-                  "%s/%s (%s" % (res['templatetotal'], res['templatelimit'], percentage((res['templatetotal']), (res['templatelimit']))) + "%)",
+                  "%s/%s (%s" % (res['cputotal'], res['cpulimit'], percentage((res['cputotal']),
+                                 (res['cpulimit']))) + "%)",
+                  "%s/%s (%s" % (int(res['memorytotal'])/1024, int(res['memorylimit'])/1024,
+                                 percentage(int(res['memorytotal'])/1024, int(res['memorylimit'])/1024)) + "%)",
+                  "%s/%s (%s" % (res['primarystoragetotal'], res['primarystoragelimit'],
+                                 percentage((res['primarystoragetotal']), (res['primarystoragelimit']))) + "%)",
+                  "%s/%s (%s" % (res['secondarystoragetotal'], res['secondarystoragelimit'],
+                                 percentage((res['secondarystoragetotal']), (res['secondarystoragelimit']))) + "%)",
+                  "%s/%s (%s" % (res['templatetotal'], res['templatelimit'], percentage((res['templatetotal']),
+                                 (res['templatelimit']))) + "%)",
                   "%s/%s (%s" % (res['vmtotal'], res['vmlimit'], percentage((res['vmtotal']), (res['vmlimit']))) + "%)",
-                  "%s/%s (%s" % (res['volumetotal'], res['volumelimit'], percentage((res['volumetotal']), (res['volumelimit']))) + "%)"])
+                  "%s/%s (%s" % (res['volumetotal'], res['volumelimit'], percentage((res['volumetotal']),
+                                 (res['volumelimit']))) + "%)"])
     return t.get_string(sortby="Project")
 
 
-def list_clusters():
+def show_clusters_usage():
     result = api.listClusters({
         'showcapacities':   'true',
         'allocationstate':  'Enabled'
     })
     t = PrettyTable(['Zone', 'Cluster', 'Pod', 'Type', 'Used (%)', 'To Threshold', 'Free (GB/unit)'])
 
+    conf = Configurations()
+
     for res in result['cluster']:
         for r in res['capacity']:
             if (r['type'] == 0):
                 # memory
-                threshold = float(get_configuration('cluster.memory.allocated.capacity.disablethreshold')[0]['value'])
+                threshold = float(conf.get('cluster.memory.allocated.capacity.disablethreshold')['value'])
             elif (r['type'] == 1):
                 # CPU
-                threshold = float(get_configuration('cluster.cpu.allocated.capacity.disablethreshold')[0]['value'])
+                threshold = float(conf.get('cluster.cpu.allocated.capacity.disablethreshold')['value'])
             elif (r['type'] == 2):
                 # Storage
-                threshold = float(get_configuration('pool.storage.capacity.disablethreshold')[0]['value'])
+                threshold = float(conf.get('pool.storage.capacity.disablethreshold')['value'])
             elif (r['type'] == 3):
                 # Allocated Storage
-                threshold = float(get_configuration('pool.storage.allocated.capacity.disablethreshold')[0]['value'])
+                threshold = float(conf.get('pool.storage.allocated.capacity.disablethreshold')['value'])
             else:
                 threshold = 1
 
@@ -180,13 +227,13 @@ def list_clusters():
     return t.get_string(sortby="Used (%)", reversesort=True)
 
 
-def list_vrs():
+def show_vrs():
     # show project
     result = api.listRouters({
         'listall':  'true',
     })
     t = PrettyTable(['Name', 'State', 'Zone', 'Host', 'Version', 'Network Domain', 'Networkname', 'Link Local IP',
-                    'Guest IP Addr'])
+                    'Guest IP Addr', 'Network ID'])
 
     if 'router' in result:
         for rtr in result['router']:
@@ -197,67 +244,34 @@ def list_vrs():
             if 'networkdomain' not in rtr:
                 rtr['networkdomain'] = 'N/A'
             for device in rtr['nic']:
-                if 'networkname' in device:
-                    ntw_name = device['networkname']
-                if 'ip6address' in device:
-                    ip_addr = device['ip6address']
-                if 'ipaddress' in device:
-                    if not device['ipaddress'].startswith('169'):
-                        ip_addr = device['ipaddress']
+                if device['traffictype'] == 'Guest':
+                    if 'networkid' in device:
+                        ntw_id = device['networkid']
+                    if 'networkname' in device:
+                        ntw_name = device['networkname']
+                    if 'ip6address' in device:
+                        ip_addr = device['ip6address']
+                    if 'ipaddress' in device:
+                        if not device['ipaddress'].startswith('169'):
+                            ip_addr = device['ipaddress']
 
             t.add_row([rtr['name'], rtr['state'], rtr['zonename'], rtr['hostname'], rtr['version'],
-                      rtr['networkdomain'], ntw_name, rtr['linklocalip'], ip_addr])
+                      rtr['networkdomain'], ntw_name, rtr['linklocalip'], ip_addr, ntw_id])
         return t.get_string(sortby="Version", reversesort=True)
     else:
         sys.exit("There is no VR's in this region")
 
-    for rtr in result['router']:
-        for device in rtr['nic']:
-            if 'networkname' in device:
-                ntw_name = device['networkname']
-            if 'ip6address' in device:
-                ip_addr = device['ip6address']
-            elif device.get('ipaddress'):
-                if not device['ipaddress'].startswith('169'):
-                    ip_addr = device['ipaddress']
 
-        t.add_row([rtr.get('name'), rtr.get('state'), rtr.get('zonename'), rtr.get('hostname'), rtr.get('version'), rtr.get('networkdomain'),
-                  ntw_name, rtr.get('linklocalip'), ip_addr])
-    return t.get_string(sortby="Version", reversesort=True)
-
-
-def list_ssvms():
-    result = api.listSystemVms({})
-    t = PrettyTable(['Name', 'Version', 'State', 'Agent', 'Type', 'Zone', 'Host'])
-    for ssvm in result['systemvm']:
-        agent_status = api.listHosts({
-            'name':     ssvm['name']
-        })
-        # if ssvm is not in running state, the xen host is empty.
-        if not 'hostname' in ssvm:
-            ssvm['hostname'] = '-'
-        t.add_row([ssvm['name'], agent_status['host'][0]['version'], ssvm['state'], agent_status['host'][0]['state'],
-                  ssvm['systemvmtype'], ssvm['zonename'], ssvm['hostname']])
-    return t.get_string(sortby="Zone")
-
-
-def list_capacities():
-    result = api.listCapacity({})
-    t = PrettyTable(['Type', 'Zone', 'Used (%)'])
-    t.align['Type'] = 'l'
-    for rsc_type in result['capacity']:
-        t.add_row([capacity_type[rsc_type['type']], rsc_type['zonename'], float(rsc_type['percentused'])])
-    return t.get_string(sortby="Used (%)", reversesort=True)
-
-
-def list_loadbalancers():
+def show_loadbalancers():
+    proj = Projects()
+    acct = Accounts()
     # by project or account
     if args.lb == 'project':
-        all_lb = get_projects('id')
+        all_lb = proj.get('id')
         param_type = 'projectid'
         lst_type = 'project'
     elif args.lb == 'account':
-        all_lb = get_accounts('name')
+        all_lb = acct.old_list_all('name')
         param_type = 'account'
         lst_type = 'account'
     else:
@@ -273,108 +287,159 @@ def list_loadbalancers():
         })
         # if project has LB
         if result:
+            ntw = Networks()
             # Get details from network
             for lb in result['loadbalancerrule']:
-                network_details = get_network_detail(id=lb['networkid'], **{param_type: project_id})
+                network_details = ntw.get_detail(id=lb['networkid'], **{param_type: project_id})[0]
                 # get details from additional network(s) in LB
                 additional_network = []
                 if lb['additionalnetworkids']:
                     for adt_network in lb['additionalnetworkids']:
-                        additional_network.append(get_network_detail(id=adt_network, **{param_type: project_id})['name'])
+                        additional_network.append(ntw.get_detail(id=adt_network, **{param_type: project_id})['name'])[0]
                 t.add_row([lb[lst_type], lb['state'], lb['name'], lb['publicip'], network_details['cidr'],
                           network_details['name'], network_details['networkdomain'], additional_network])
     return t.get_string(sortby=lst_type.capitalize())
 
 
-def list_vms():
-    t = PrettyTable(['Project', 'Hostname', 'displayname', 'instancename'])
-    for project in get_projects('id'):
-        project_name = get_project_detail(id=project, listall='true')['project'][0]['name']
-        print "Getting VM list from project '%s'" % project_name
-        result = api.listVirtualMachines({
-            'listall':      'true',
-            'projectid':    project
+def show_ssvms():
+    result = api.listSystemVms({})
+    t = PrettyTable(['Name', 'Version', 'State', 'Agent', 'Type', 'Zone', 'Host'])
+    for ssvm in result['systemvm']:
+        agent_status = api.listHosts({
+            'name':     ssvm['name']
         })
-        if 'virtualmachine' in result:
-            for vm in result['virtualmachine']:
-                if 'hostname' in vm:
-                    t.add_row([project_name, vm['hostname'], vm['displayname'], vm['instancename']])
-    return t.get_string(sortby="Hostname")
+        # if ssvm is not in running state, the xen host is empty.
+        if not 'hostname' in ssvm:
+            ssvm['hostname'] = '-'
+        t.add_row([ssvm['name'], agent_status['host'][0]['version'], ssvm['state'], agent_status['host'][0]['state'],
+                  ssvm['systemvmtype'], ssvm['zonename'], ssvm['hostname']])
+    return t.get_string(sortby="Zone")
 
 
-def list_userdata():
+def show_capacities():
+    result = api.listCapacity({})
+    t = PrettyTable(['Type', 'Zone', 'Used (%)'])
+    t.align['Type'] = 'l'
+    for rsc_type in result['capacity']:
+        t.add_row([capacity_type[rsc_type['type']], rsc_type['zonename'], float(rsc_type['percentused'])])
+    return t.get_string(sortby="Used (%)", reversesort=True)
+
+
+def show_userdata():
+    proj = Projects()
+    vm_data = UserData()
+    vms = VMs()
     # list by project
     t = PrettyTable(['Project', 'Vm Name', 'VM ID', 'Length'])
-    for project in get_projects('id'):
-        project_name = get_project_detail(id=project, listall='true')['project'][0]['name']
+    for project in proj.get('id'):
+        project_name = proj.detail(id=project, listall='true')['project'][0]['name']
         print "Getting userdata from project '%s' (id:%s)" % (project_name, project)
-        result = api.listVirtualMachines({
-            'listall':      'true',
-            'projectid':    project
-        })
+        result = vms.list(project)
         if 'virtualmachine' in result:
             for vm in result['virtualmachine']:
-                userdata = get_userdata(vmid=vm['id'])['virtualmachineuserdata']
+                userdata = vm_data.get(vm['id'])['virtualmachineuserdata']
                 if 'userdata' in userdata:
                     t.add_row([project_name, vm['name'], vm['id'], len(userdata['userdata'])])
     return t.get_string(sortby="Length", reversesort=True)
 
 
-def reset_userdata(project_id):
-        if 'project' in get_project_detail(id=project_id, listall='true'):
-            project_name = get_project_detail(id=project_id, listall='true')['project'][0]['name']
-        else:
-            sys.exit("There is no project with id: '%s'" % project_id)
-
-        shall = raw_input("Remove userdata from _all_ VM's on project '%s' (y/N) " % project_name).lower() == 'y'
-        if shall:
-            result = api.listVirtualMachines({
-                'listall':      'true',
-                'projectid':    project_id
-            })
-            if result:
-                for vm in result['virtualmachine']:
-                    userdata = get_userdata(vmid=vm['id'])['virtualmachineuserdata']
-                    if 'userdata' in userdata:
-                        print "Reseting userdata from vm: %s" % (vm['name'])
-                        reset_userdata_by_vm_id(vm['id'])
-
-
-def list_vms():
+def show_vms():
+    proj = Projects()
+    vms = VMs()
     t = PrettyTable(['Project', 'Name', 'ID', 'State', 'Hostname', 'Service Offering', 'Zone'])
-    for project in get_projects('id'):
-        project_name = get_project_detail(id=project, listall='true')['project'][0]['name']
-        result = api.listVirtualMachines({
-            'listall':      'true',
-            'projectid':    project
-        })
+    for project in proj.get('id'):
+        project_name = proj.detail(id=project, listall='true')['project'][0]['name']
+        result = vms.list(project)
         if 'virtualmachine' in result:
             for vm in result['virtualmachine']:
                 if not 'hostname' in vm:
                     vm['hostname'] = '-'
-                t.add_row([project_name, vm['name'], vm['id'], vm['state'], vm['hostname'], vm['serviceofferingname'], vm['zonename']])
+                t.add_row([project_name, vm['name'], vm['id'], vm['state'], vm['hostname'],
+                          vm['serviceofferingname'], vm['zonename']])
     if args.order:
         return t.get_string(sortby=args.order)
     else:
         return t.get_string(sortby="Project")
 
 
+def show_networks():
+    pjts = Projects().list_all()
+    ntws = Networks()
+    # Show all accounts and projects
+    t = PrettyTable(['Account', 'Project', 'Name', 'Status', 'ID', 'Network Domain', 'CIDR', 'Zone'])
+
+    # public networks
+    for netact in ntws.get_detail(**{'listall': 'true'}):
+        if 'account' not in netact:
+            netact['account'] = 'N/A'
+        if 'ip6cidr' in netact:
+            cidr = netact['ip6cidr']
+        elif 'cidr' in netact:
+            cidr = netact['cidr']
+        if 'networkdomain' not in netact:
+            netact['networkdomain'] = 'N/A'
+        project = 'N/A'
+        t.add_row([netact['account'], project, netact['name'], netact['state'], netact['id'],
+                  netact['networkdomain'], cidr, netact['zonename']])
+
+    if 'project' in pjts:
+        for actpj in pjts['project']:
+            result = ntws.get(actpj['id'])
+            for n in result['network']:
+                if 'account' in n:
+                    account = n['account']
+                else:
+                    account = 'N/A'
+                if 'subdomainaccess' not in n:
+                    if 'cidr' in n:
+                        cidr = n['cidr']
+                    elif 'ip6cidr' in n:
+                        cidr = n['ip6cidr']
+                    else:
+                        cidr = 'N/A'
+                    t.add_row([account, actpj['name'], n['name'], n['state'], n['id'],
+                              n['networkdomain'], cidr, n['zonename']])
+    return t.get_string(sortby='Project')
+
+
+def reset_userdata(project_id):
+    vm_data = UserData()
+    proj = Projects()
+    vms = VMs()
+    if 'project' in proj.detail(id=project_id, listall='true'):
+        project_name = proj.detail(id=project_id, listall='true')['project'][0]['name']
+    else:
+        sys.exit("There is no project with id: '%s'" % project_id)
+
+    shall = raw_input("Remove userdata from _all_ VM's on project '%s' (y/N) " % project_name).lower() == 'y'
+    if shall:
+        result = vms.list(project_id)
+        if result:
+            for vm in result['virtualmachine']:
+                usrdata = vm_data.get(vmid=vm['id'])['virtualmachineuserdata']
+                if 'userdata' in usrdata:
+                    print "Reseting userdata from vm: %s" % (vm['name'])
+                    vm_data.reset(vm['id'])
+
+
 if args.project:
-    print list_projects()
+    print show_projects_usage()
 elif args.cluster:
-    print list_clusters()
+    print show_clusters_usage()
 elif args.vr:
-    print list_vrs()
+    print show_vrs()
 elif args.ssvm:
-    print list_ssvms()
+    print show_ssvms()
 elif args.capacity:
-    print list_capacities()
+    print show_capacities()
 elif args.lb:
-    print list_loadbalancers()
+    print show_loadbalancers()
 elif args.userdata:
-    print list_userdata()
+    print show_userdata()
 elif args.vm:
-    print list_vms()
+    print show_vms()
+elif args.network:
+    print show_networks()
 elif args.reset_userdata:
     try:
         uuid.UUID(args.reset_userdata, version=4)
