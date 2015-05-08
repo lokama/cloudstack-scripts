@@ -403,6 +403,8 @@ def show_networks():
 
         if netact['account'] == 'N/A':
             c_init = Colors.FAIL
+        elif 'SANITY' in netact['name'].upper():
+            c_init = Colors.WARNING
         else:
             c_init = ''
 
@@ -412,6 +414,8 @@ def show_networks():
     if 'project' in pjts:
         for actpj in pjts['project']:
             result = ntws.get(actpj['id'])
+            if len(result) < 1:
+                continue
             for n in result['network']:
                 if 'account' in n:
                     account = n['account']
