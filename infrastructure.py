@@ -60,6 +60,15 @@ capacity_type = {
 }
 
 
+class Colors(object):
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
 class Configurations(object):
     'Global Settings from ACS'
 
@@ -169,7 +178,19 @@ def show_projects_usage():
                     'Templates', 'VM', 'Volume'])
     t.align['Project'] = 'l'
     for res in result['project']:
-        t.add_row([res['name'], res['account'],
+        if (
+            int(res['cputotal']) > int(res['cpulimit']) or
+            int(res['memorytotal']) > int(res['memorylimit']) or
+            int(res['primarystoragetotal']) > int(res['primarystoragelimit']) or
+            int(res['secondarystoragetotal']) > int(res['secondarystoragelimit']) or
+            int(res['templatetotal']) > int(res['templatelimit']) or
+            int(res['vmtotal']) > int(res['vmlimit']) or
+            int(res['volumetotal']) > int(res['volumelimit'])
+        ):
+            c_init = Colors.FAIL
+        else:
+            c_init = ''
+        t.add_row([c_init + res['name'], res['account'],
                   "%s/%s (%s" % (res['cputotal'], res['cpulimit'], percentage((res['cputotal']),
                                  (res['cpulimit']))) + "%)",
                   "%s/%s (%s" % (int(res['memorytotal'])/1024, int(res['memorylimit'])/1024,
@@ -182,7 +203,7 @@ def show_projects_usage():
                                  (res['templatelimit']))) + "%)",
                   "%s/%s (%s" % (res['vmtotal'], res['vmlimit'], percentage((res['vmtotal']), (res['vmlimit']))) + "%)",
                   "%s/%s (%s" % (res['volumetotal'], res['volumelimit'], percentage((res['volumetotal']),
-                                 (res['volumelimit']))) + "%)"])
+                                 (res['volumelimit']))) + "%)" + Colors.ENDC])
     return t.get_string(sortby="Project")
 
 
@@ -379,8 +400,14 @@ def show_networks():
         if 'networkdomain' not in netact:
             netact['networkdomain'] = 'N/A'
         project = 'N/A'
-        t.add_row([netact['account'], project, netact['name'], netact['state'], netact['id'],
-                  netact['networkdomain'], cidr, netact['zonename']])
+
+        if netact['account'] == 'N/A':
+            c_init = Colors.FAIL
+        else:
+            c_init = ''
+
+        t.add_row([c_init + netact['account'], project, netact['name'], netact['state'], netact['id'],
+                  netact['networkdomain'], cidr, netact['zonename'] + Colors.ENDC])
 
     if 'project' in pjts:
         for actpj in pjts['project']:
