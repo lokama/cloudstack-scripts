@@ -387,6 +387,7 @@ def show_vms():
 def show_networks():
     pjts = Projects().list_all()
     ntws = Networks()
+    warning_network_states = ['Shutdown', 'Implementing', 'Allocating']
     # Show all accounts and projects
     t = PrettyTable(['Account', 'Project', 'Name', 'Status', 'ID', 'Network Domain', 'CIDR', 'Zone'])
 
@@ -402,9 +403,10 @@ def show_networks():
             netact['networkdomain'] = 'N/A'
         project = 'N/A'
 
+        # if there is no account AND no project something is wrong
         if netact['account'] == 'N/A':
             c_init = Colors.FAIL
-        elif 'SANITY' in netact['name'].upper():
+        elif 'SANITY' in netact['name'].upper() or netact['state'] in warning_network_states:
             c_init = Colors.WARNING
         else:
             c_init = ''
@@ -429,8 +431,12 @@ def show_networks():
                         cidr = n['ip6cidr']
                     else:
                         cidr = 'N/A'
-                    t.add_row([account, actpj['name'], n['name'], n['state'], n['id'],
-                              n['networkdomain'], cidr, n['zonename']])
+                    if netact['state'] in warning_network_states:
+                        c_init = Colors.WARNING
+                    else:
+                        c_init = ''
+                    t.add_row([c_init + account, actpj['name'], n['name'], n['state'], n['id'],
+                              n['networkdomain'], cidr, n['zonename'] + Colors.ENDC])
     return t.get_string(sortby='Project')
 
 
