@@ -431,7 +431,7 @@ def show_networks():
                         cidr = n['ip6cidr']
                     else:
                         cidr = 'N/A'
-                    if netact['state'] not in expected_network_state:
+                    if netact['state'] not in expected_network_state or 'SANITY' in actpj['name'].upper():
                         c_init = Colors.WARNING
                     else:
                         c_init = ''
