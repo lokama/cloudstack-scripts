@@ -174,18 +174,18 @@ def percentage(part, whole):
 def show_projects_usage():
     pjt = Projects()
     result = pjt.list_all()
-    t = PrettyTable(['Project', 'Account', 'CPU', 'MEM (GB)', 'Pri Stg (GB)', 'Sec Stg (GB)',
+    t = PrettyTable(['Project', 'Account', 'VCPU', 'MEM (GB)', 'Pri Stg (GB)', 'Sec Stg (GB)',
                     'Templates', 'VM', 'Volume'])
     t.align['Project'] = 'l'
     for res in result['project']:
         if (
-            int(res['cputotal']) > int(res['cpulimit']) or
-            int(res['memorytotal']) > int(res['memorylimit']) or
-            int(res['primarystoragetotal']) > int(res['primarystoragelimit']) or
-            int(res['secondarystoragetotal']) > int(res['secondarystoragelimit']) or
-            int(res['templatetotal']) > int(res['templatelimit']) or
-            int(res['vmtotal']) > int(res['vmlimit']) or
-            int(res['volumetotal']) > int(res['volumelimit'])
+            int(res['cputotal']) > int(res['cpulimit']) or int(res['cputotal']) < 0 or
+            int(res['memorytotal']) > int(res['memorylimit']) or int(res['memorytotal']) < 0 or
+            int(res['primarystoragetotal']) > int(res['primarystoragelimit']) or int(res['primarystoragetotal']) < 0 or
+            int(res['secondarystoragetotal']) > int(res['secondarystoragelimit']) or int(res['secondarystoragetotal']) < 0 or
+            int(res['templatetotal']) > int(res['templatelimit']) or int(res['templatetotal']) < 0 or
+            int(res['vmtotal']) > int(res['vmlimit']) or int(res['vmtotal']) < 0 or
+            int(res['volumetotal']) > int(res['volumelimit']) or int(res['volumetotal']) < 0
         ):
             c_init = Colors.FAIL
         else:
@@ -387,7 +387,7 @@ def show_vms():
 def show_networks():
     pjts = Projects().list_all()
     ntws = Networks()
-    warning_network_states = ['Shutdown', 'Implementing', 'Allocating']
+    expected_network_state = ['Allocated', 'Implemented']
     # Show all accounts and projects
     t = PrettyTable(['Account', 'Project', 'Name', 'Status', 'ID', 'Network Domain', 'CIDR', 'Zone'])
 
@@ -406,7 +406,7 @@ def show_networks():
         # if there is no account AND no project something is wrong
         if netact['account'] == 'N/A':
             c_init = Colors.FAIL
-        elif 'SANITY' in netact['name'].upper() or netact['state'] in warning_network_states:
+        elif 'SANITY' in netact['name'].upper() or netact['state'] not in expected_network_state:
             c_init = Colors.WARNING
         else:
             c_init = ''
@@ -431,7 +431,7 @@ def show_networks():
                         cidr = n['ip6cidr']
                     else:
                         cidr = 'N/A'
-                    if netact['state'] in warning_network_states:
+                    if netact['state'] not in expected_network_state:
                         c_init = Colors.WARNING
                     else:
                         c_init = ''
