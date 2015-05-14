@@ -20,6 +20,7 @@ parser.add_argument('--userdata', action="store_true", help='Show userdata lengt
 parser.add_argument('--reset_userdata', type=str, help='Reset userdata by project id or vm id')
 parser.add_argument('--capacity', action="store_true", help='Capacity by zone and type, ordered by used resources')
 parser.add_argument('--network', action="store_true", help='List networks all networks')
+parser.add_argument('--checkup', action="store_true", help='Tests critical components on ACS')
 parser.add_argument('--region', type=str, default='lab',
                     help='Choose your region based on your cloudmonkey profile. Default profile is "lab"')
 parser.add_argument('--order', type=str,
@@ -61,10 +62,10 @@ capacity_type = {
 
 
 class Colors(object):
-    OKGREEN = '\033[92m'
+    OK = '\033[92m'
     WARNING = '\033[93m'
     FAIL = '\033[91m'
-    ENDC = '\033[0m'
+    END = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
@@ -95,6 +96,16 @@ class Accounts(object):
         return api.listAccounts({
             'listall':  'true'
         })
+
+
+class Hosts(object):
+    'Hosts'
+
+    def list(self):
+        result = api.listHosts({
+            'type':  'Routing'
+        })
+        return result
 
 
 class Projects(object):
@@ -163,7 +174,6 @@ class Networks(object):
     def get_detail(self, **kwargs):
         result = api.listNetworks(kwargs)
         if result:
-            # return result['network'][0]
             return result['network']
 
 
@@ -203,7 +213,7 @@ def show_projects_usage():
                                  (res['templatelimit']))) + "%)",
                   "%s/%s (%s" % (res['vmtotal'], res['vmlimit'], percentage((res['vmtotal']), (res['vmlimit']))) + "%)",
                   "%s/%s (%s" % (res['volumetotal'], res['volumelimit'], percentage((res['volumetotal']),
-                                 (res['volumelimit']))) + "%)" + Colors.ENDC])
+                                 (res['volumelimit']))) + "%)" + Colors.END])
     return t.get_string(sortby="Project")
 
 
@@ -249,7 +259,6 @@ def show_clusters_usage():
 
 
 def show_vrs():
-    # show project
     result = api.listRouters({
         'listall':  'true',
     })
@@ -275,9 +284,13 @@ def show_vrs():
                     if 'ipaddress' in device:
                         if not device['ipaddress'].startswith('169'):
                             ip_addr = device['ipaddress']
+            if rtr['state'] != 'Running':
+                c_init = Colors.WARNING
+            else:
+                c_init = ''
 
-            t.add_row([rtr['name'], rtr['state'], rtr['zonename'], rtr['hostname'], rtr['version'],
-                      rtr['networkdomain'], ntw_name, rtr['linklocalip'], ip_addr, ntw_id])
+            t.add_row([c_init + rtr['name'], rtr['state'], rtr['zonename'], rtr['hostname'], rtr['version'],
+                      rtr['networkdomain'], ntw_name, rtr['linklocalip'], ip_addr, ntw_id + Colors.END])
         return t.get_string(sortby="Version", reversesort=True)
     else:
         sys.exit("There is no VR's in this region")
@@ -323,7 +336,7 @@ def show_loadbalancers():
     return t.get_string(sortby=lst_type.capitalize())
 
 
-def show_ssvms():
+def show_ssvms(alertonly=0):
     result = api.listSystemVms({})
     t = PrettyTable(['Name', 'Version', 'State', 'Agent', 'Type', 'Zone', 'Host'])
     for ssvm in result['systemvm']:
@@ -331,10 +344,16 @@ def show_ssvms():
             'name':     ssvm['name']
         })
         # if ssvm is not in running state, the xen host is empty.
-        if not 'hostname' in ssvm:
+        if 'hostname' not in ssvm:
             ssvm['hostname'] = '-'
-        t.add_row([ssvm['name'], agent_status['host'][0]['version'], ssvm['state'], agent_status['host'][0]['state'],
-                  ssvm['systemvmtype'], ssvm['zonename'], ssvm['hostname']])
+        if ssvm['state'] != 'Running' or agent_status['host'][0]['state'] != 'Up':
+            c_init = Colors.FAIL
+        else:
+            c_init = ''
+        t.add_row([c_init + ssvm['name'], agent_status['host'][0]['version'], ssvm['state'],
+                  agent_status['host'][0]['state'], ssvm['systemvmtype'], ssvm['zonename'],
+                  ssvm['hostname'] + Colors.END])
+    # import ipdb; ipdb.set_trace();
     return t.get_string(sortby="Zone")
 
 
@@ -374,7 +393,7 @@ def show_vms():
         result = vms.list(project)
         if 'virtualmachine' in result:
             for vm in result['virtualmachine']:
-                if not 'hostname' in vm:
+                if 'hostname' not in vm:
                     vm['hostname'] = '-'
                 t.add_row([project_name, vm['name'], vm['id'], vm['state'], vm['hostname'],
                           vm['serviceofferingname'], vm['zonename']])
@@ -412,7 +431,7 @@ def show_networks():
             c_init = ''
 
         t.add_row([c_init + netact['account'], project, netact['name'], netact['state'], netact['id'],
-                  netact['networkdomain'], cidr, netact['zonename'] + Colors.ENDC])
+                  netact['networkdomain'], cidr, netact['zonename'] + Colors.END])
 
     if 'project' in pjts:
         for actpj in pjts['project']:
@@ -440,7 +459,7 @@ def show_networks():
                     else:
                         c_init = ''
                     t.add_row([c_init + account, actpj['name'], n['name'], n['state'], n['id'],
-                              n['networkdomain'], cidr, n['zonename'] + Colors.ENDC])
+                              n['networkdomain'], cidr, n['zonename'] + Colors.END])
     return t.get_string(sortby='Project')
 
 
@@ -482,6 +501,8 @@ elif args.vm:
     print show_vms()
 elif args.network:
     print show_networks()
+elif args.checkup:
+    check_up()
 elif args.reset_userdata:
     try:
         uuid.UUID(args.reset_userdata, version=4)
