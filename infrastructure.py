@@ -353,7 +353,6 @@ def show_ssvms(alertonly=0):
         t.add_row([c_init + ssvm['name'], agent_status['host'][0]['version'], ssvm['state'],
                   agent_status['host'][0]['state'], ssvm['systemvmtype'], ssvm['zonename'],
                   ssvm['hostname'] + Colors.END])
-    # import ipdb; ipdb.set_trace();
     return t.get_string(sortby="Zone")
 
 
@@ -481,6 +480,96 @@ def reset_userdata(project_id):
                 if 'userdata' in usrdata:
                     print "Reseting userdata from vm: %s" % (vm['name'])
                     vm_data.reset(vm['id'])
+
+
+def check_up():
+    # network sem account e/ou projeto
+    # recursos negativos ou maiores que 100%
+    #
+    print "Getting status from hypervisor hosts...",
+    thost = PrettyTable(['Hostname', 'Cluster', 'Resource State', 'State'])
+    hosts = Hosts().list()
+    for host in hosts['host']:
+        if host['resourcestate'] != 'Enabled' or host['state'] != 'Up':
+            thost.add_row([host['name'], host['clustername'], host['resourcestate'], host['state']])
+    if len(thost._rows):
+        print Colors.WARNING + '[WARNING]' + Colors.END
+        print thost.get_string(sortby="Hostname")
+    else:
+        print Colors.OK + '[OK]' + Colors.END
+
+    print "Getting status from ssvm's...",
+    tssvm = PrettyTable(['Name', 'Version', 'State', 'Agent', 'Type', 'Zone', 'Host'])
+    result = api.listSystemVms({})
+    for ssvm in result['systemvm']:
+        agent_status = api.listHosts({
+            'name':     ssvm['name']
+        })
+        # if ssvm is not in running state, the xen host is empty.
+        if 'hostname' not in ssvm:
+            ssvm['hostname'] = '-'
+        if agent_status['host'][0]['state'] != 'Up' or ssvm['state'] != 'Running':
+            tssvm.add_row([ssvm['name'], agent_status['host'][0]['version'], ssvm['state'],
+                          agent_status['host'][0]['state'], ssvm['systemvmtype'], ssvm['zonename'], ssvm['hostname']])
+    if len(tssvm._rows):
+        print Colors.WARNING + '[WARNING]' + Colors.END
+        print tssvm.get_string(sortby="Zone")
+    else:
+        print Colors.OK + '[OK]' + Colors.END
+
+    print "Getting status from VR's...",
+    tvr = PrettyTable(['Name', 'Host', 'State', 'Zonename'])
+    result = api.listRouters({
+        'listall':  'true',
+    })
+    for vr in result['router']:
+        if vr['state'] != 'Running':
+            if 'hostname' not in vr:
+                vr['hostname'] = 'N/A'
+            tvr.add_row([vr['name'], vr['hostname'], vr['state'], vr['zonename']])
+    if len(tvr._rows):
+        print Colors.WARNING + '[WARNING]' + Colors.END
+        print tvr
+    else:
+        print Colors.OK + '[OK]' + Colors.END
+
+    # Check clusters
+    print "Getting cluster resources...",
+    result = api.listClusters({
+        'showcapacities':   'true',
+        'allocationstate':  'Enabled'
+    })
+    tcluster = PrettyTable(['Zone', 'Cluster', 'Type', 'Used (%)', 'Threshold'])
+    conf = Configurations()
+
+    for res in result['cluster']:
+        for r in res['capacity']:
+            if (r['type'] == 0):
+                # memory
+                threshold = float(conf.get('cluster.memory.allocated.capacity.disablethreshold')['value'])*100
+                notification = float(conf.get('cluster.memory.allocated.capacity.notificationthreshold')['value'])*100
+            elif (r['type'] == 1):
+                # CPU
+                threshold = float(conf.get('cluster.cpu.allocated.capacity.disablethreshold')['value'])*100
+                notification = float(conf.get('cluster.cpu.allocated.capacity.notificationthreshold')['value'])*100
+            elif (r['type'] == 2):
+                # Storage
+                threshold = float(conf.get('pool.storage.capacity.disablethreshold')['value'])*100
+                notification = float(conf.get('cluster.storage.allocated.capacity.notificationthreshold')['value'])*100
+            elif (r['type'] == 3):
+                # Allocated Storage
+                threshold = float(conf.get('pool.storage.allocated.capacity.disablethreshold')['value'])*100
+                notification = float(conf.get('cluster.storage.allocated.capacity.notificationthreshold')['value'])*100
+            else:
+                threshold = 1
+            if float(r['percentused']) > notification:
+                tcluster.add_row([res['zonename'], res['name'], capacity_type[r['type']], float(r['percentused']),
+                                 threshold])
+    if len(tcluster._rows):
+        print Colors.WARNING + '[WARNING]' + Colors.END
+        print tcluster.get_string(sortby="Used (%)", reversesort=True)
+    else:
+        print Colors.OK + '[OK]' + Colors.END
 
 
 if args.project:
