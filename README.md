@@ -26,7 +26,7 @@ Helpful cloudstack script(s) to show what's going on with your resources on clou
 
 ## Requirements
 
-* cloudmonkey config file (cloudmonkey >5.2.0): ~/.cloudstack/config
+* [cloudmonkey config file (cloudmonkey >5.2.0): ~/.cloudstack/config](https://cwiki.apache.org/confluence/display/CLOUDSTACK/CloudStack+cloudmonkey+CLI#CloudStackcloudmonkeyCLI-Managementserverprofiles)
 * Satisfy all python requirements in the requirements.txt file
 
 \
