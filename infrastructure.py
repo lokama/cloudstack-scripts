@@ -20,6 +20,7 @@ parser.add_argument('--userdata', action="store_true", help='Show userdata lengt
 parser.add_argument('--reset_userdata', type=str, help='Reset userdata by project id or vm id')
 parser.add_argument('--capacity', action="store_true", help='Capacity by zone and type, ordered by used resources')
 parser.add_argument('--network', action="store_true", help='List networks all networks')
+parser.add_argument('--checkup', action="store_true", help='Tests critical components on ACS')
 parser.add_argument('--region', type=str, default='lab',
                     help='Choose your region based on your cloudmonkey profile. Default profile is "lab"')
 parser.add_argument('--order', type=str,
@@ -61,10 +62,10 @@ capacity_type = {
 
 
 class Colors(object):
-    OKGREEN = '\033[92m'
+    OK = '\033[92m'
     WARNING = '\033[93m'
     FAIL = '\033[91m'
-    ENDC = '\033[0m'
+    END = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
@@ -95,6 +96,16 @@ class Accounts(object):
         return api.listAccounts({
             'listall':  'true'
         })
+
+
+class Hosts(object):
+    'Hosts'
+
+    def list(self):
+        result = api.listHosts({
+            'type':  'Routing'
+        })
+        return result
 
 
 class Projects(object):
@@ -163,7 +174,6 @@ class Networks(object):
     def get_detail(self, **kwargs):
         result = api.listNetworks(kwargs)
         if result:
-            # return result['network'][0]
             return result['network']
 
 
@@ -174,18 +184,18 @@ def percentage(part, whole):
 def show_projects_usage():
     pjt = Projects()
     result = pjt.list_all()
-    t = PrettyTable(['Project', 'Account', 'CPU', 'MEM (GB)', 'Pri Stg (GB)', 'Sec Stg (GB)',
+    t = PrettyTable(['Project', 'Account', 'VCPU', 'MEM (GB)', 'Pri Stg (GB)', 'Sec Stg (GB)',
                     'Templates', 'VM', 'Volume'])
     t.align['Project'] = 'l'
     for res in result['project']:
         if (
-            int(res['cputotal']) > int(res['cpulimit']) or
-            int(res['memorytotal']) > int(res['memorylimit']) or
-            int(res['primarystoragetotal']) > int(res['primarystoragelimit']) or
-            int(res['secondarystoragetotal']) > int(res['secondarystoragelimit']) or
-            int(res['templatetotal']) > int(res['templatelimit']) or
-            int(res['vmtotal']) > int(res['vmlimit']) or
-            int(res['volumetotal']) > int(res['volumelimit'])
+            int(res['cputotal']) > int(res['cpulimit']) or int(res['cputotal']) < 0 or
+            int(res['memorytotal']) > int(res['memorylimit']) or int(res['memorytotal']) < 0 or
+            int(res['primarystoragetotal']) > int(res['primarystoragelimit']) or int(res['primarystoragetotal']) < 0 or
+            int(res['secondarystoragetotal']) > int(res['secondarystoragelimit']) or int(res['secondarystoragetotal']) < 0 or
+            int(res['templatetotal']) > int(res['templatelimit']) or int(res['templatetotal']) < 0 or
+            int(res['vmtotal']) > int(res['vmlimit']) or int(res['vmtotal']) < 0 or
+            int(res['volumetotal']) > int(res['volumelimit']) or int(res['volumetotal']) < 0
         ):
             c_init = Colors.FAIL
         else:
@@ -203,7 +213,7 @@ def show_projects_usage():
                                  (res['templatelimit']))) + "%)",
                   "%s/%s (%s" % (res['vmtotal'], res['vmlimit'], percentage((res['vmtotal']), (res['vmlimit']))) + "%)",
                   "%s/%s (%s" % (res['volumetotal'], res['volumelimit'], percentage((res['volumetotal']),
-                                 (res['volumelimit']))) + "%)" + Colors.ENDC])
+                                 (res['volumelimit']))) + "%)" + Colors.END])
     return t.get_string(sortby="Project")
 
 
@@ -249,7 +259,6 @@ def show_clusters_usage():
 
 
 def show_vrs():
-    # show project
     result = api.listRouters({
         'listall':  'true',
     })
@@ -275,9 +284,13 @@ def show_vrs():
                     if 'ipaddress' in device:
                         if not device['ipaddress'].startswith('169'):
                             ip_addr = device['ipaddress']
+            if rtr['state'] != 'Running':
+                c_init = Colors.WARNING
+            else:
+                c_init = ''
 
-            t.add_row([rtr['name'], rtr['state'], rtr['zonename'], rtr['hostname'], rtr['version'],
-                      rtr['networkdomain'], ntw_name, rtr['linklocalip'], ip_addr, ntw_id])
+            t.add_row([c_init + rtr['name'], rtr['state'], rtr['zonename'], rtr['hostname'], rtr['version'],
+                      rtr['networkdomain'], ntw_name, rtr['linklocalip'], ip_addr, ntw_id + Colors.END])
         return t.get_string(sortby="Version", reversesort=True)
     else:
         sys.exit("There is no VR's in this region")
@@ -323,7 +336,7 @@ def show_loadbalancers():
     return t.get_string(sortby=lst_type.capitalize())
 
 
-def show_ssvms():
+def show_ssvms(alertonly=0):
     result = api.listSystemVms({})
     t = PrettyTable(['Name', 'Version', 'State', 'Agent', 'Type', 'Zone', 'Host'])
     for ssvm in result['systemvm']:
@@ -331,10 +344,15 @@ def show_ssvms():
             'name':     ssvm['name']
         })
         # if ssvm is not in running state, the xen host is empty.
-        if not 'hostname' in ssvm:
+        if 'hostname' not in ssvm:
             ssvm['hostname'] = '-'
-        t.add_row([ssvm['name'], agent_status['host'][0]['version'], ssvm['state'], agent_status['host'][0]['state'],
-                  ssvm['systemvmtype'], ssvm['zonename'], ssvm['hostname']])
+        if ssvm['state'] != 'Running' or agent_status['host'][0]['state'] != 'Up':
+            c_init = Colors.FAIL
+        else:
+            c_init = ''
+        t.add_row([c_init + ssvm['name'], agent_status['host'][0]['version'], ssvm['state'],
+                  agent_status['host'][0]['state'], ssvm['systemvmtype'], ssvm['zonename'],
+                  ssvm['hostname'] + Colors.END])
     return t.get_string(sortby="Zone")
 
 
@@ -374,7 +392,7 @@ def show_vms():
         result = vms.list(project)
         if 'virtualmachine' in result:
             for vm in result['virtualmachine']:
-                if not 'hostname' in vm:
+                if 'hostname' not in vm:
                     vm['hostname'] = '-'
                 t.add_row([project_name, vm['name'], vm['id'], vm['state'], vm['hostname'],
                           vm['serviceofferingname'], vm['zonename']])
@@ -387,6 +405,7 @@ def show_vms():
 def show_networks():
     pjts = Projects().list_all()
     ntws = Networks()
+    expected_network_state = ['Allocated', 'Implemented']
     # Show all accounts and projects
     t = PrettyTable(['Account', 'Project', 'Name', 'Status', 'ID', 'Network Domain', 'CIDR', 'Zone'])
 
@@ -402,15 +421,16 @@ def show_networks():
             netact['networkdomain'] = 'N/A'
         project = 'N/A'
 
+        # if there is no account AND no project something is wrong
         if netact['account'] == 'N/A':
             c_init = Colors.FAIL
-        elif 'SANITY' in netact['name'].upper():
+        elif 'SANITY' in netact['name'].upper() or netact['state'] not in expected_network_state:
             c_init = Colors.WARNING
         else:
             c_init = ''
 
         t.add_row([c_init + netact['account'], project, netact['name'], netact['state'], netact['id'],
-                  netact['networkdomain'], cidr, netact['zonename'] + Colors.ENDC])
+                  netact['networkdomain'], cidr, netact['zonename'] + Colors.END])
 
     if 'project' in pjts:
         for actpj in pjts['project']:
@@ -429,8 +449,16 @@ def show_networks():
                         cidr = n['ip6cidr']
                     else:
                         cidr = 'N/A'
-                    t.add_row([account, actpj['name'], n['name'], n['state'], n['id'],
-                              n['networkdomain'], cidr, n['zonename']])
+                    if (
+                        netact['state'] not in expected_network_state or
+                        'SANITY' in actpj['name'].upper() or
+                        n['state'] not in expected_network_state
+                    ):
+                        c_init = Colors.WARNING
+                    else:
+                        c_init = ''
+                    t.add_row([c_init + account, actpj['name'], n['name'], n['state'], n['id'],
+                              n['networkdomain'], cidr, n['zonename'] + Colors.END])
     return t.get_string(sortby='Project')
 
 
@@ -454,6 +482,97 @@ def reset_userdata(project_id):
                     vm_data.reset(vm['id'])
 
 
+def check_up():
+    # network sem account e/ou projeto
+    # recursos negativos ou maiores que 100%
+    #
+    print "Getting status from hypervisor hosts...",
+    thost = PrettyTable(['Hostname', 'Cluster', 'Resource State', 'State'])
+    hosts = Hosts().list()
+    for host in hosts['host']:
+        if host['resourcestate'] != 'Enabled' or host['state'] != 'Up':
+            thost.add_row([host['name'], host['clustername'], host['resourcestate'], host['state']])
+    if len(thost._rows):
+        print Colors.WARNING + '[WARNING]' + Colors.END
+        print thost.get_string(sortby="Hostname")
+    else:
+        print Colors.OK + '[OK]' + Colors.END
+
+    print "Getting status from ssvm's...",
+    tssvm = PrettyTable(['Name', 'Version', 'State', 'Agent', 'Type', 'Zone', 'Host'])
+    result = api.listSystemVms({})
+    for ssvm in result['systemvm']:
+        agent_status = api.listHosts({
+            'name':     ssvm['name']
+        })
+        # if ssvm is not in running state, the xen host is empty.
+        if 'hostname' not in ssvm:
+            ssvm['hostname'] = '-'
+        if agent_status['host'][0]['state'] != 'Up' or ssvm['state'] != 'Running':
+            tssvm.add_row([ssvm['name'], agent_status['host'][0]['version'], ssvm['state'],
+                          agent_status['host'][0]['state'], ssvm['systemvmtype'], ssvm['zonename'], ssvm['hostname']])
+    if len(tssvm._rows):
+        print Colors.WARNING + '[WARNING]' + Colors.END
+        print tssvm.get_string(sortby="Zone")
+    else:
+        print Colors.OK + '[OK]' + Colors.END
+
+    print "Getting status from VR's...",
+    tvr = PrettyTable(['Name', 'Host', 'State', 'Zonename'])
+    result = api.listRouters({
+        'listall':  'true',
+    })
+    for vr in result['router']:
+        if vr['state'] != 'Running':
+            if 'hostname' not in vr:
+                vr['hostname'] = 'N/A'
+            tvr.add_row([vr['name'], vr['hostname'], vr['state'], vr['zonename']])
+    if len(tvr._rows):
+        print Colors.WARNING + '[WARNING]' + Colors.END
+        print tvr
+    else:
+        print Colors.OK + '[OK]' + Colors.END
+
+    # Check clusters
+    print "Getting cluster resources...",
+    result = api.listClusters({
+        'showcapacities':   'true',
+        'allocationstate':  'Enabled'
+    })
+    tcluster = PrettyTable(['Zone', 'Cluster', 'Type', 'Used (%)', 'Threshold'])
+    conf = Configurations()
+
+    for res in result['cluster']:
+        for r in res['capacity']:
+            if (r['type'] == 0):
+                # memory
+                threshold = float(conf.get('cluster.memory.allocated.capacity.disablethreshold')['value'])*100
+                notification = float(conf.get('cluster.memory.allocated.capacity.notificationthreshold')['value'])*100
+            elif (r['type'] == 1):
+                # CPU
+                threshold = float(conf.get('cluster.cpu.allocated.capacity.disablethreshold')['value'])*100
+                notification = float(conf.get('cluster.cpu.allocated.capacity.notificationthreshold')['value'])*100
+            elif (r['type'] == 2):
+                # Storage
+                threshold = float(conf.get('pool.storage.capacity.disablethreshold')['value'])*100
+                notification = float(conf.get('cluster.storage.allocated.capacity.notificationthreshold')['value'])*100
+            elif (r['type'] == 3):
+                # Allocated Storage
+                threshold = float(conf.get('pool.storage.allocated.capacity.disablethreshold')['value'])*100
+                notification = float(conf.get('cluster.storage.allocated.capacity.notificationthreshold')['value'])*100
+            else:
+                threshold = 1
+                notification = 0
+            if float(r['percentused']) > notification and notification:
+                tcluster.add_row([res['zonename'], res['name'], capacity_type[r['type']], float(r['percentused']),
+                                 threshold])
+    if len(tcluster._rows):
+        print Colors.WARNING + '[WARNING]' + Colors.END
+        print tcluster.get_string(sortby="Used (%)", reversesort=True)
+    else:
+        print Colors.OK + '[OK]' + Colors.END
+
+
 if args.project:
     print show_projects_usage()
 elif args.cluster:
@@ -472,6 +591,8 @@ elif args.vm:
     print show_vms()
 elif args.network:
     print show_networks()
+elif args.checkup:
+    check_up()
 elif args.reset_userdata:
     try:
         uuid.UUID(args.reset_userdata, version=4)
