@@ -562,7 +562,8 @@ def check_up():
                 notification = float(conf.get('cluster.storage.allocated.capacity.notificationthreshold')['value'])*100
             else:
                 threshold = 1
-            if float(r['percentused']) > notification:
+                notification = 0
+            if float(r['percentused']) > notification and notification:
                 tcluster.add_row([res['zonename'], res['name'], capacity_type[r['type']], float(r['percentused']),
                                  threshold])
     if len(tcluster._rows):
