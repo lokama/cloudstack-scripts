@@ -18,26 +18,29 @@ DB_DATABASE = "cloud"
 class MyEmail(object):
 
     def __init__(self, to=None, cc=None, from_="", subject="", body=""):
-        self.to = to
-        self.cc = cc
-        self.subject = cc
-        self.body = body
-        self.from_ = from_
+        self._to = to
+        self._cc = cc
+        self._subject = subject
+        self._body = body
+        self._from = from_
 
         self._msg = MIMEText(body)
-        self._msg['Subject'] = self.subject
-        self._msg['From'] = self.from_
-        self._msg['To'] = self.to
+        self._msg['Subject'] = self._subject
+        self._msg['From'] = self._from
+        self._msg['To'] = self._to
+        print "my email inicializado"
 
     def send(self):
         s = smtplib.SMTP('localhost')
-        s.sendmail(self.from_, [self.to], self.body)
+        s.sendmail(self._from, [self._to], self._body)
         s.quit()
+        print "from: %s | to: %s\n body: %s" % (self._from, [self._to], self._body)
 
 
 class VolumeMonitor(object):
 
     def __init__(self, options={}):
+
         self.db_host = options.get("db_host")
         self.db_user = options.get("db_user")
         self.db_password = options.get("db_password")
@@ -48,6 +51,13 @@ class VolumeMonitor(object):
         self.table_absent_volumes = PrettyTable(["ID", "ACCOUNT_ID", "NAME", "UUID", "PATH", "POOL_ID", "TEMPLATE_ID", "INSTANCE_ID", "REMOVED"])
         self.project_account_id = None
         self.project_accounts_ids = {}
+        self._is_zumbi_volume_found = False
+
+        #email
+        self.send_email = options.get("send_mail", False)
+        self.email_to = options.get("email_to", "")
+        self.email_from = options.get("email_from", "")
+        self._email_body = []
 
     def get_volume(self, id=None):
         result = self.api.listVolumes({
@@ -101,40 +111,63 @@ class VolumeMonitor(object):
         self.close_connection()
 
     def list_absent_volumes(self):
+        self.open_connection()
         cursor = self.db_connection.cursor()
-        for project_account_id, project_details in self.project_accounts_ids.items():
-            query = self.get_computed_volumes_query(account_id=project_account_id)
-            cursor.execute(query)
-            total_volume_absent = 0
+        try:
+            for project_account_id, project_details in self.project_accounts_ids.items():
+                query = self.get_computed_volumes_query(account_id=project_account_id)
+                cursor.execute(query)
+                total_volume_absent = 0
+                try:
+                    for (id, account_id, name, uuid, path, pool_id, template_id, instance_id, removed) in cursor:
+                        colums = [id, "%s(%s)" % (account_id, project_details["name"]), name, uuid, path, pool_id, template_id, instance_id, removed]
+                        self.table_all_volumes.add_row(colums)
+
+                        #check if volume exists
+                        volume = self.get_volume(id=uuid)
+                        if not volume:
+                            #print "\t volume %s does not exist!" % uuid
+                            self.table_absent_volumes.add_row(colums)
+                            total_volume_absent += 1
+                            if not self._is_zumbi_volume_found:
+                                self._is_zumbi_volume_found = True
+
+                        #print "\t volume: %s" % volume
+
+                    base_msg = "Total volumes absent for project_account_id %s => %s" % (project_details["name"], total_volume_absent)
+                    if self.send_email:
+                        self._email_body.append(base_msg)
+                    if total_volume_absent > 0:
+                        print Colors.FAIL + base_msg + Colors.END
+                    else:
+                        print Colors.OK + base_msg + Colors.END
+                    time.sleep(1)
+                except Exception, e:
+                    print "ops... %s" % e
+        finally:
             try:
-                for (id, account_id, name, uuid, path, pool_id, template_id, instance_id, removed) in cursor:
-                    colums = [id, "%s(%s)" % (account_id, project_details["name"]), name, uuid, path, pool_id, template_id, instance_id, removed]
-                    self.table_all_volumes.add_row(colums)
-
-                    #check if volume exists
-                    volume = self.get_volume(id=uuid)
-                    if not volume:
-                        #print "\t volume %s does not exist!" % uuid
-                        self.table_absent_volumes.add_row(colums)
-                        total_volume_absent += 1
-
-                    #print "\t volume: %s" % volume
-
-                if total_volume_absent > 0:
-                    print Colors.FAIL + "Total volumes absent for project_account_id %s => %s" % (project_details["name"], total_volume_absent) + Colors.END
-                else:
-                    print "Total volumes absent for project_account_id %s => %s" % (project_details["name"], total_volume_absent)
-                time.sleep(1)
+                cursor.close()
+                self.close_connection()
             except Exception, e:
-                print "ops... %s" % e
+                print e
 
-        cursor.close()
+        if self._is_zumbi_volume_found and self.send_email:
+            print "ZUMBI volumes found!!! Sending email!"
+            self._email_body.append("\n")
+            self.notify_email()
+
+    def notify_email(self):
+        self._email_body.append(self.table_absent_volumes.get_string())
+        body = "\n".join(self._email_body)
+        my_email = MyEmail(to=self.email_to,
+                from_=self.email_from,
+                subject="[CLOUDSTACK VOLUME MONITOR] - zumbi volume found!",
+                body=body)
+        my_email.send()
 
     def run(self):
         self.get_project_accounts()
-        self.open_connection()
         self.list_absent_volumes()
-        self.close_connection()
 
         print self.table_absent_volumes
 
@@ -148,7 +181,9 @@ if __name__ == "__main__":
     parser.add_argument('--send_email', type=bool, default=False,
                     help='Should we send email?')
     parser.add_argument('--email_to', type=str, default='',
-                help='Email to')
+                help='Send email to')
+    parser.add_argument('--email_from', type=str, default='',
+                help='Who is sending the email?')
     args = parser.parse_args()
 
 
@@ -176,8 +211,10 @@ if __name__ == "__main__":
 
     project_account_id = args.accountid
     send_email = args.send_email
+    email_to = ""
     if send_email:
         email_to = args.email_to
+        email_from = args.email_from
 
     print "account id => %s" % project_account_id
     print "send email? =>  %s" % send_email
@@ -187,7 +224,8 @@ if __name__ == "__main__":
                 "db_host": db_host,
                 "db_user": db_user,
                 "db_password": db_password,
-                "send_mail": send_email}
+                "send_mail": send_email,
+                "email_to": email_to}
     volume_monitor = VolumeMonitor(options=options)
     if project_account_id:
         volume_monitor.project_account_id = project_account_id
