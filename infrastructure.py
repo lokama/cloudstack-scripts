@@ -30,7 +30,7 @@ args = parser.parse_args()
 
 
 # import keys from cloudmonkey config
-parser = SafeConfigParser()
+parser = SafeConfigParser({'verifysslcert': 'true'})
 parser.read(os.path.expanduser('~/.cloudmonkey/config'))
 if parser.has_section(args.region):
     if not parser.has_option(args.region, 'url'):
@@ -43,9 +43,10 @@ if parser.has_section(args.region):
     apikey = parser.get(args.region, 'apikey')
     api_url = parser.get(args.region, 'url')
     secretkey = parser.get(args.region, 'secretkey')
+    verifysslcert = parser.getboolean(args.region, 'verifysslcert')
 else:
     sys.exit("Invalid region: '%s'" % args.region)
-api = CloudStack(api_url, apikey, secretkey)
+api = CloudStack(api_url, apikey, secretkey, verifysslcert)
 
 capacity_type = {
     0:  'Memory',

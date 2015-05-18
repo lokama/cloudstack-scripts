@@ -3,12 +3,14 @@
 
 import hashlib, hmac, string, base64, urllib
 import json, urllib
+import ssl
 
 class SignedAPICall(object):
-    def __init__(self, api_url, apiKey, secret):
+    def __init__(self, api_url, apiKey, secret, verifysslcert):
         self.api_url = api_url
         self.apiKey = apiKey
         self.secret = secret
+        self.verifysslcert = verifysslcert
 
     def request(self, args):
         args['apiKey'] = self.apiKey
@@ -46,7 +48,15 @@ class CloudStack(SignedAPICall):
         return handlerFunction
 
     def _http_get(self, url):
-        response = urllib.urlopen(url)
+
+        if self.verifysslcert:
+            response = urllib.urlopen(url)
+        else:
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+
+            response = urllib.urlopen(url, context=ctx)
         return response.read()
 
     def _make_request(self, command, args):
