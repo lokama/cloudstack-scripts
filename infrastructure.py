@@ -468,7 +468,7 @@ def reset_userdata(project_id):
         result = vms.list(project_id)
         if result:
             for vm in result['virtualmachine']:
-                usrdata = vm_data.get(vmid=vm['id'])['virtualmachineuserdata']
+                usrdata = vm_data.get(vm_id=vm['id'])['virtualmachineuserdata']
                 if 'userdata' in usrdata:
                     print "Reseting userdata from vm: %s" % (vm['name'])
                     vm_data.reset(vm['id'])
