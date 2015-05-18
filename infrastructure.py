@@ -7,6 +7,7 @@ import sys
 import uuid
 from ConfigParser import SafeConfigParser
 from ACSConn import CloudStack
+from colors import Colors
 from prettytable import PrettyTable
 
 parser = argparse.ArgumentParser(description='Check Cloudstack status')
@@ -59,15 +60,6 @@ capacity_type = {
     9:  'Local Storage',
     19: 'GPU'
 }
-
-
-class Colors(object):
-    OK = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    END = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
 
 
 class Configurations(object):
