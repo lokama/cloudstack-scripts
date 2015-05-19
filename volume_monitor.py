@@ -218,6 +218,7 @@ if __name__ == "__main__":
     project_account_id = args.accountid
     send_email = args.send_email
     email_to = ""
+    email_from = ""
     if send_email:
         email_to = args.email_to
         email_from = args.email_from
