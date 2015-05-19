@@ -40,7 +40,6 @@ class MyEmail(object):
         s = smtplib.SMTP('localhost')
         s.sendmail(self._from, [self._to], self._msg.as_string())
         s.quit()
-        print "from: %s | to: %s\n body: %s" % (self._from, [self._to], self._body)
 
 
 class VolumeMonitor(object):
