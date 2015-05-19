@@ -10,6 +10,7 @@ import time
 import smtplib
 from email.mime.text import MIMEText
 from ConfigParser import SafeConfigParser
+from email.mime.multipart import MIMEMultipart
 
 LOG = logging.getLogger(__name__)
 
@@ -24,15 +25,20 @@ class MyEmail(object):
         self._body = body
         self._from = from_
 
-        self._msg = MIMEText(body)
+        self._msg = MIMEMultipart('alternative')
         self._msg['Subject'] = self._subject
         self._msg['From'] = self._from
         self._msg['To'] = self._to
-        print "my email inicializado"
+
+        part1 = MIMEText(body, 'plain')
+        part2 = MIMEText(body, 'html')
+
+        self._msg.attach(part1)
+        self._msg.attach(part2)
 
     def send(self):
         s = smtplib.SMTP('localhost')
-        s.sendmail(self._from, [self._to], self._body)
+        s.sendmail(self._from, [self._to], self._msg.as_string())
         s.quit()
         print "from: %s | to: %s\n body: %s" % (self._from, [self._to], self._body)
 
@@ -157,8 +163,8 @@ class VolumeMonitor(object):
             self.notify_email()
 
     def notify_email(self):
-        self._email_body.append(self.table_absent_volumes.get_string())
-        body = "\n".join(self._email_body)
+        self._email_body.append(self.table_absent_volumes.get_html_string())
+        body = "<br/>".join(self._email_body)
         my_email = MyEmail(to=self.email_to,
                 from_=self.email_from,
                 subject="[CLOUDSTACK VOLUME MONITOR] - zumbi volume found!",
@@ -225,7 +231,8 @@ if __name__ == "__main__":
                 "db_user": db_user,
                 "db_password": db_password,
                 "send_mail": send_email,
-                "email_to": email_to}
+                "email_to": email_to,
+                "email_from": email_from}
     volume_monitor = VolumeMonitor(options=options)
     if project_account_id:
         volume_monitor.project_account_id = project_account_id
