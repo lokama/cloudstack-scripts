@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 # By: Kelcey Damage, 2012 & Kraig Amador, 2012
 
-import hashlib, hmac, string, base64, urllib
-import json, urllib
+import hashlib, hmac, base64, urllib
+import json
+import sys
 import ssl
+
 
 class SignedAPICall(object):
     def __init__(self, api_url, apiKey, secret, verifysslcert):
@@ -39,6 +41,7 @@ class SignedAPICall(object):
         self.query += '&signature=' + urllib.quote_plus(self.signature)
         self.value = self.api_url + '?' + self.query
 
+
 class CloudStack(SignedAPICall):
     def __getattr__(self, name):
         def handlerFunction(*args, **kwargs):
@@ -49,7 +52,7 @@ class CloudStack(SignedAPICall):
 
     def _http_get(self, url):
 
-        if self.verifysslcert:
+        if self.verifysslcert and sys.version_info < (2, 7, 9):
             response = urllib.urlopen(url)
         else:
             ctx = ssl.create_default_context()
