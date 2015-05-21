@@ -8,6 +8,7 @@ import os
 import sys
 import time
 import smtplib
+import traceback
 from email.mime.text import MIMEText
 from ConfigParser import SafeConfigParser
 from email.mime.multipart import MIMEMultipart
@@ -67,6 +68,9 @@ class VolumeMonitor(object):
         self._email_subject = options.get("email_subject", "[CLOUDSTACK VOLUME MONITOR %s] - zumbi volume found!" % self._region)
 
     def get_volume(self, id=None):
+        if not id:
+            return {}
+
         result = self.api.listVolumes({
             'listall':  'true',
             'id':  id
@@ -119,9 +123,9 @@ class VolumeMonitor(object):
 
     def list_absent_volumes(self):
         self.open_connection()
-        cursor = self.db_connection.cursor()
         try:
             for project_account_id, project_details in self.project_accounts_ids.items():
+                cursor = self.db_connection.cursor(buffered=True)
                 query = self.get_computed_volumes_query(account_id=project_account_id)
                 cursor.execute(query)
                 total_volume_absent = 0
@@ -151,9 +155,12 @@ class VolumeMonitor(object):
                     time.sleep(1)
                 except Exception, e:
                     print "ops... %s" % e
+                    print(traceback.format_exc())
+
+
+                cursor.close()
         finally:
             try:
-                cursor.close()
                 self.close_connection()
             except Exception, e:
                 print e
@@ -186,7 +193,7 @@ if __name__ == "__main__":
     parser.add_argument('--accountid', type=str, default='',
                         help='Account id associated to the project')
     parser.add_argument('--send_email', type=bool, default=False,
-                    help='Should we send email?')
+                    help='Should we send email? (Default false)')
     parser.add_argument('--email_to', type=str, default='',
                 help='Send email to')
     parser.add_argument('--email_from', type=str, default='',
@@ -223,9 +230,6 @@ if __name__ == "__main__":
     if send_email:
         email_to = args.email_to
         email_from = args.email_from
-
-    print "account id => %s" % project_account_id
-    print "send email? =>  %s" % send_email
 
     api = CloudStack(api_url, apikey, secretkey)
     options = {"api": api,
