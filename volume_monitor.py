@@ -40,7 +40,6 @@ class MyEmail(object):
         s = smtplib.SMTP('localhost')
         s.sendmail(self._from, [self._to], self._msg.as_string())
         s.quit()
-        print "from: %s | to: %s\n body: %s" % (self._from, [self._to], self._body)
 
 
 class VolumeMonitor(object):
@@ -58,12 +57,14 @@ class VolumeMonitor(object):
         self.project_account_id = None
         self.project_accounts_ids = {}
         self._is_zumbi_volume_found = False
+        self._region = options.get("region", "")
 
         #email
         self.send_email = options.get("send_mail", False)
         self.email_to = options.get("email_to", "")
         self.email_from = options.get("email_from", "")
         self._email_body = []
+        self._email_subject = options.get("email_subject", "[CLOUDSTACK VOLUME MONITOR %s] - zumbi volume found!" % self._region)
 
     def get_volume(self, id=None):
         result = self.api.listVolumes({
@@ -167,7 +168,7 @@ class VolumeMonitor(object):
         body = "<br/>".join(self._email_body)
         my_email = MyEmail(to=self.email_to,
                 from_=self.email_from,
-                subject="[CLOUDSTACK VOLUME MONITOR] - zumbi volume found!",
+                subject=self._email_subject,
                 body=body)
         my_email.send()
 
@@ -218,6 +219,7 @@ if __name__ == "__main__":
     project_account_id = args.accountid
     send_email = args.send_email
     email_to = ""
+    email_from = ""
     if send_email:
         email_to = args.email_to
         email_from = args.email_from
@@ -232,7 +234,8 @@ if __name__ == "__main__":
                 "db_password": db_password,
                 "send_mail": send_email,
                 "email_to": email_to,
-                "email_from": email_from}
+                "email_from": email_from,
+                "region": args.region}
     volume_monitor = VolumeMonitor(options=options)
     if project_account_id:
         volume_monitor.project_account_id = project_account_id
