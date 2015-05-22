@@ -8,6 +8,7 @@ import os
 import sys
 import time
 import smtplib
+import traceback
 from email.mime.text import MIMEText
 from ConfigParser import SafeConfigParser
 from email.mime.multipart import MIMEMultipart
@@ -58,6 +59,7 @@ class VolumeMonitor(object):
         self.project_accounts_ids = {}
         self._is_zumbi_volume_found = False
         self._region = options.get("region", "")
+        self._list_vdis = options.get("list_vdis", "")
 
         #email
         self.send_email = options.get("send_mail", False)
@@ -67,6 +69,9 @@ class VolumeMonitor(object):
         self._email_subject = options.get("email_subject", "[CLOUDSTACK VOLUME MONITOR %s] - zumbi volume found!" % self._region)
 
     def get_volume(self, id=None):
+        if not id:
+            return {}
+
         result = self.api.listVolumes({
             'listall':  'true',
             'id':  id
@@ -117,11 +122,11 @@ class VolumeMonitor(object):
         cursor.close()
         self.close_connection()
 
-    def list_absent_volumes(self):
+    def absent_volumes_table(self):
         self.open_connection()
-        cursor = self.db_connection.cursor()
         try:
             for project_account_id, project_details in self.project_accounts_ids.items():
+                cursor = self.db_connection.cursor(buffered=True)
                 query = self.get_computed_volumes_query(account_id=project_account_id)
                 cursor.execute(query)
                 total_volume_absent = 0
@@ -151,9 +156,12 @@ class VolumeMonitor(object):
                     time.sleep(1)
                 except Exception, e:
                     print "ops... %s" % e
+                    print(traceback.format_exc())
+
+
+                cursor.close()
         finally:
             try:
-                cursor.close()
                 self.close_connection()
             except Exception, e:
                 print e
@@ -172,11 +180,18 @@ class VolumeMonitor(object):
                 body=body)
         my_email.send()
 
+    def get_vdi_list(self):
+        print "\n\n\n"
+        print self.table_absent_volumes.get_string(fields=["UUID"])
+
     def run(self):
         self.get_project_accounts()
-        self.list_absent_volumes()
+        self.absent_volumes_table()
 
         print self.table_absent_volumes
+        if self._list_vdis:
+            self.get_vdi_list()
+
 
 if __name__ == "__main__":
 
@@ -186,11 +201,13 @@ if __name__ == "__main__":
     parser.add_argument('--accountid', type=str, default='',
                         help='Account id associated to the project')
     parser.add_argument('--send_email', type=bool, default=False,
-                    help='Should we send email?')
+                    help='Should we send email? (Default false)')
     parser.add_argument('--email_to', type=str, default='',
                 help='Send email to')
     parser.add_argument('--email_from', type=str, default='',
                 help='Who is sending the email?')
+    parser.add_argument('--list_vdis', type=bool, default=False,
+                help='List volumes VDIs? (Default false)')
     args = parser.parse_args()
 
 
@@ -224,9 +241,6 @@ if __name__ == "__main__":
         email_to = args.email_to
         email_from = args.email_from
 
-    print "account id => %s" % project_account_id
-    print "send email? =>  %s" % send_email
-
     api = CloudStack(api_url, apikey, secretkey)
     options = {"api": api,
                 "db_host": db_host,
@@ -235,7 +249,8 @@ if __name__ == "__main__":
                 "send_mail": send_email,
                 "email_to": email_to,
                 "email_from": email_from,
-                "region": args.region}
+                "region": args.region,
+                "list_vdis": args.list_vdis}
     volume_monitor = VolumeMonitor(options=options)
     if project_account_id:
         volume_monitor.project_account_id = project_account_id
