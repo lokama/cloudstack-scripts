@@ -59,6 +59,7 @@ class VolumeMonitor(object):
         self.project_accounts_ids = {}
         self._is_zumbi_volume_found = False
         self._region = options.get("region", "")
+        self._list_vdis = options.get("list_vdis", "")
 
         #email
         self.send_email = options.get("send_mail", False)
@@ -121,7 +122,7 @@ class VolumeMonitor(object):
         cursor.close()
         self.close_connection()
 
-    def list_absent_volumes(self):
+    def absent_volumes_table(self):
         self.open_connection()
         try:
             for project_account_id, project_details in self.project_accounts_ids.items():
@@ -179,11 +180,18 @@ class VolumeMonitor(object):
                 body=body)
         my_email.send()
 
+    def get_vdi_list(self):
+        print "\n\n\n"
+        print self.table_absent_volumes.get_string(fields=["UUID"])
+
     def run(self):
         self.get_project_accounts()
-        self.list_absent_volumes()
+        self.absent_volumes_table()
 
         print self.table_absent_volumes
+        if self._list_vdis:
+            self.get_vdi_list()
+
 
 if __name__ == "__main__":
 
@@ -198,6 +206,8 @@ if __name__ == "__main__":
                 help='Send email to')
     parser.add_argument('--email_from', type=str, default='',
                 help='Who is sending the email?')
+    parser.add_argument('--list_vdis', type=bool, default=False,
+                help='List volumes VDIs? (Default false)')
     args = parser.parse_args()
 
 
@@ -239,7 +249,8 @@ if __name__ == "__main__":
                 "send_mail": send_email,
                 "email_to": email_to,
                 "email_from": email_from,
-                "region": args.region}
+                "region": args.region,
+                "list_vdis": args.list_vdis}
     volume_monitor = VolumeMonitor(options=options)
     if project_account_id:
         volume_monitor.project_account_id = project_account_id
