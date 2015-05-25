@@ -80,7 +80,7 @@ if __name__ == "__main__":
 
     #print "userdata_2k: %s" % userdata_2k
 
-    userdata_large = b'MARKER' + b'%s'%(os.urandom(30*1024))
+    userdata_large = b'MARKER' + b'%s'%(os.urandom(20*1024))
     userdata_large = base64.b64encode(userdata_large)
 
     #print "userdata_33k: %s" % userdata_large
