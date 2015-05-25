@@ -29,7 +29,7 @@ class VirtualMachine(object):
         self.user_data = user_data
 
     def deploy(self):
-        result = self.api.deployVirtualMachine({
+        result = self.api.deployVirtualMachine('POST', {
             'displayname': self.display_name,
             'hypervisor': hypervisor,
             'serviceofferingid': serviceofferingid,
@@ -80,10 +80,10 @@ if __name__ == "__main__":
 
     #print "userdata_2k: %s" % userdata_2k
 
-    userdata_33k = b'MARKER' + b'%s'%(os.urandom(33*1024))
-    userdata_33k = base64.b64encode(userdata_33k)
+    userdata_large = b'MARKER' + b'%s'%(os.urandom(20*1024))
+    userdata_large = base64.b64encode(userdata_large)
 
-    #print "userdata_33k: %s" % userdata_33k
+    #print "userdata_33k: %s" % userdata_large
 
     #deploy vm
     vm_name = "test-vm-userdata-" + timestamp
