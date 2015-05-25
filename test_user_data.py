@@ -57,9 +57,10 @@ def get_api(args=None):
         apikey = parser.get(args.region, 'apikey')
         api_url = parser.get(args.region, 'url')
         secretkey = parser.get(args.region, 'secretkey')
+        verifysslcert = parser.getboolean(args.region, 'verifysslcert')
     else:
         sys.exit("Invalid region: '%s'" % args.region)
-    api = CloudStack(api_url, apikey, secretkey)
+    api = CloudStack(api_url, apikey, secretkey, verifysslcert)
     return api
 
 

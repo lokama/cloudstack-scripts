@@ -225,6 +225,7 @@ if __name__ == "__main__":
         apikey = parser.get(args.region, 'apikey')
         api_url = parser.get(args.region, 'url')
         secretkey = parser.get(args.region, 'secretkey')
+        verifysslcert = parser.getboolean(args.region, 'verifysslcert')
         db_host = parser.get(args.region, 'db_host')
         db_user = parser.get(args.region, 'db_user')
         db_password = parser.get(args.region, 'db_password')
@@ -241,7 +242,7 @@ if __name__ == "__main__":
         email_to = args.email_to
         email_from = args.email_from
 
-    api = CloudStack(api_url, apikey, secretkey)
+    api = CloudStack(api_url, apikey, secretkey, verifysslcert)
     options = {"api": api,
                 "db_host": db_host,
                 "db_user": db_user,
