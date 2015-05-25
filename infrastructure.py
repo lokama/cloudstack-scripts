@@ -364,6 +364,7 @@ def show_userdata():
     vms = VMs()
     # list by project
     t = PrettyTable(['Project', 'Vm Name', 'VM ID', 'Length'])
+    total_user_table = PrettyTable(['Project', 'Length'])
     userdata_per_project_map = {}
     for project in proj.get('id'):
         project_name = proj.detail(id=project, listall='true')['project'][0]['name']
@@ -381,8 +382,8 @@ def show_userdata():
 
     #add total values in table
     for project_name, total in userdata_per_project_map.items():
-        t.add_row([project_name, "N/A", "N/A", total])
-    return t.get_string(sortby="Length", reversesort=True)
+        total_user_table.add_row([project_name, total/1024])
+    return (t.get_string(sortby="Length", reversesort=True), total_user_table.get_string(sortby="Length", reversesort=True))
 
 
 def show_vms():
@@ -588,7 +589,10 @@ elif args.capacity:
 elif args.lb:
     print show_loadbalancers()
 elif args.userdata:
-    print show_userdata()
+    detailed_table, consolidated_table = show_userdata()
+    print detailed_table
+    print ""
+    print consolidated_table
 elif args.vm:
     print show_vms()
 elif args.network:
