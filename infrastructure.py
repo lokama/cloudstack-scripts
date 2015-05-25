@@ -364,6 +364,7 @@ def show_userdata():
     vms = VMs()
     # list by project
     t = PrettyTable(['Project', 'Vm Name', 'VM ID', 'Length'])
+    userdata_per_project_map = {}
     for project in proj.get('id'):
         project_name = proj.detail(id=project, listall='true')['project'][0]['name']
         print "Getting userdata from project '%s' (id:%s)" % (project_name, project)
@@ -372,7 +373,15 @@ def show_userdata():
             for vm in result['virtualmachine']:
                 userdata = vm_data.get(vm['id'])['virtualmachineuserdata']
                 if 'userdata' in userdata:
-                    t.add_row([project_name, vm['name'], vm['id'], len(userdata['userdata'])])
+                    count = userdata_per_project_map.get(project_name, 0)
+                    userdata_length = len(userdata['userdata'])
+                    count += userdata_length
+                    t.add_row([project_name, vm['name'], vm['id'], userdata_length])
+                    userdata_per_project_map[project_name] = count
+
+    #add total values in table
+    for project_name, total in userdata_per_project_map.items():
+        t.add_row([project_name, "N/A", "N/A", total])
     return t.get_string(sortby="Length", reversesort=True)
 
 
