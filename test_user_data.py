@@ -72,24 +72,28 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Check Cloudstack status')
     parser.add_argument('--region', type=str, default='lab',
                         help='Choose your region based on your cloudmonkey profile. Default profile is "lab"')
+    parser.add_argument('--use_large_userdata', type=bool, default=False,
+                        help='Should I use large_userdata (27kb) to deploy a new vm? Default to false.')
     args = parser.parse_args()
 
     api = get_api(args=args)
-    userdata_2k = b'MARKER' + b'%s'%(os.urandom(2*1024))
-    userdata_2k = base64.b64encode(userdata_2k)
-
-    #print "userdata_2k: %s" % userdata_2k
+    userdata_small = b'MARKER' + b'%s'%(os.urandom(2*1024))
+    userdata_small = base64.b64encode(userdata_small)
 
     userdata_large = b'MARKER' + b'%s'%(os.urandom(20*1024))
     userdata_large = base64.b64encode(userdata_large)
 
-    #print "userdata_33k: %s" % userdata_large
+    #userdata
+    use_large_userdata = args.use_large_userdata
+    user_data = userdata_small
+    if use_large_userdata:
+        user_data = userdata_large
 
     #deploy vm
     vm_name = "test-vm-userdata-" + timestamp
     vm = VirtualMachine(api=api,
                         display_name=vm_name,
                         name=vm_name,
-                        user_data=userdata_large)
+                        user_data=user_data)
     result = vm.deploy()
     print result
