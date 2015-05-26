@@ -385,7 +385,7 @@ def show_userdata():
     #add total values in table
     for project_name, total in userdata_per_project_map.items():
         total_user_table.add_row([project_name, total/1024])
-    return (t.get_string(sortby="Length", reversesort=True), total_user_table.get_string(sortby="Length", reversesort=True))
+    return (t.get_string(sortby="Length (bytes)", reversesort=True), total_user_table.get_string(sortby="Length (Kb)", reversesort=True))
 
 
 def show_vms():
