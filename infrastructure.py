@@ -299,14 +299,19 @@ def show_vrs():
                     if 'ipaddress' in device:
                         if not device['ipaddress'].startswith('169'):
                             ip_addr = device['ipaddress']
-            if rtr['state'] != 'Running':
-                c_init = Colors.WARNING
-            else:
-                c_init = ''
+
             # get project/account name
             if ntw_id in map:
                 pjt = map[ntw_id]
+            else:
+                pjt = 'N/A'
 
+            if rtr['state'] != 'Running':
+                c_init = Colors.WARNING
+            elif pjt == 'N/A':
+                c_init = Colors.FAIL
+            else:
+                c_init = ''
             t.add_row([c_init + rtr['name'], rtr['state'], rtr['zonename'], rtr['hostname'], rtr['version'],
                       pjt, ntw_name, rtr['networkdomain'], rtr['linklocalip'], ip_addr, ntw_id + Colors.END])
         return t.get_string(sortby="Version", reversesort=True)
