@@ -174,6 +174,26 @@ def percentage(part, whole):
     return 100 * int(part)/int(whole)
 
 
+def load_network_map_by_project_and_account():
+    pjts = Projects().list_all()
+    ntws = Networks()
+    network_map = {}
+    # get network from projects
+    if 'project' in pjts:
+        for actpj in pjts['project']:
+            result = ntws.get(actpj['id'])
+            if len(result) < 1:
+                continue
+            for n in result['network']:
+                network_map[n['id']] = 'project-' + actpj['name']
+    # get network from accounts
+    for netact in ntws.get_detail(**{'listall': 'true'}):
+        if 'account' not in netact:
+            netact['account'] = 'N/A'
+        network_map[netact['id']] = 'account-' + netact['account']
+    return network_map
+
+
 def show_projects_usage():
     pjt = Projects()
     result = pjt.list_all()
@@ -255,8 +275,10 @@ def show_vrs():
     result = api.listRouters({
         'listall':  'true',
     })
-    t = PrettyTable(['Name', 'State', 'Zone', 'Host', 'Version', 'Network Domain', 'Networkname', 'Link Local IP',
-                    'Guest IP Addr', 'Network ID'])
+    t = PrettyTable(['Name', 'State', 'Zone', 'Host', 'Version', 'Project/Account', 'Networkname', 'Network Domain',
+                    'Link Local IP', 'Guest IP Addr', 'Network ID'])
+
+    map = load_network_map_by_project_and_account()
 
     if 'router' in result:
         for rtr in result['router']:
@@ -281,9 +303,12 @@ def show_vrs():
                 c_init = Colors.WARNING
             else:
                 c_init = ''
+            # get project/account name
+            if ntw_id in map:
+                pjt = map[ntw_id]
 
             t.add_row([c_init + rtr['name'], rtr['state'], rtr['zonename'], rtr['hostname'], rtr['version'],
-                      rtr['networkdomain'], ntw_name, rtr['linklocalip'], ip_addr, ntw_id + Colors.END])
+                      pjt, ntw_name, rtr['networkdomain'], rtr['linklocalip'], ip_addr, ntw_id + Colors.END])
         return t.get_string(sortby="Version", reversesort=True)
     else:
         sys.exit("There is no VR's in this region")
@@ -385,7 +410,8 @@ def show_userdata():
     #add total values in table
     for project_name, total in userdata_per_project_map.items():
         total_user_table.add_row([project_name, total/1024])
-    return (t.get_string(sortby="Length (bytes)", reversesort=True), total_user_table.get_string(sortby="Length (Kb)", reversesort=True))
+    return (t.get_string(sortby="Length (bytes)", reversesort=True), total_user_table.get_string(sortby="Length (Kb)",
+            reversesort=True))
 
 
 def show_vms():
