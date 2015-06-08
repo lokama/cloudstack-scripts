@@ -31,8 +31,8 @@ class MyEmail(object):
         self._msg['From'] = self._from
         self._msg['To'] = self._to
 
-        part1 = MIMEText(body, 'plain')
-        part2 = MIMEText(body, 'html')
+        part1 = MIMEText(body, 'plain', "utf-8")
+        part2 = MIMEText(body, 'html', "utf-8")
 
         self._msg.attach(part1)
         self._msg.attach(part2)
