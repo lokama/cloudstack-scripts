@@ -20,6 +20,14 @@ hypervisor="XenServer"
 serviceofferingid="84353183-e347-4443-9e5f-9ab078e4ba03"
 iptonetworklist_networkid="5be43741-63ca-4c31-aeb2-68262bc5695b"
 
+
+# projectid="0179062b-6b56-4695-8f0e-3b56b1c9399c"
+# zoneid="e170a3c8-755f-448d-a967-b936533ccfc6"
+# templateid="8478ea07-0e90-4017-bca5-453f1c1047c4"
+# hypervisor="XenServer"
+# serviceofferingid="0746a710-d0e3-4269-9e02-7ecf8b941e5c"
+# iptonetworklist_networkid="f2bea78c-90a1-4b93-aa29-eb5597ab82d4"
+
 class VirtualMachine(object):
 
     def __init__(self, api=None, display_name=None, name=None, user_data=''):
