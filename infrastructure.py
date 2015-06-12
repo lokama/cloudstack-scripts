@@ -94,9 +94,15 @@ class Accounts(object):
 class Hosts(object):
     'Hosts'
 
-    def list(self):
+    def list_hypervisors(self):
         result = api.listHosts({
             'type':  'Routing'
+        })
+        return result
+
+    def list_network_service_providers(self):
+        result = api.listHosts({
+            'type': 'L2Networking'
         })
         return result
 
@@ -525,12 +531,24 @@ def check_up():
     # network sem account e/ou projeto
     # recursos negativos ou maiores que 100%
     #
-    print "Getting status from hypervisor hosts...",
+    print "Getting status from hypervisors hosts...",
     thost = PrettyTable(['Hostname', 'Cluster', 'Resource State', 'State'])
-    hosts = Hosts().list()
+    hosts = Hosts().list_hypervisors()
     for host in hosts['host']:
         if host['resourcestate'] != 'Enabled' or host['state'] != 'Up':
             thost.add_row([host['name'], host['clustername'], host['resourcestate'], host['state']])
+    if len(thost._rows):
+        print Colors.WARNING + '[WARNING]' + Colors.END
+        print thost.get_string(sortby="Hostname")
+    else:
+        print Colors.OK + '[OK]' + Colors.END
+
+    print "Getting status from network service providers...",
+    nsp_host = PrettyTable(['Hostname', 'Zone Name', 'Resource State', 'State'])
+    network_service_providers = Hosts().list_network_service_providers()
+    for host in network_service_providers['host']:
+        if host['resourcestate'] != 'Enabled' or host['state'] != 'Up':
+            nsp_host.add_row([host['name'], host['zonename'], host['resourcestate'], host['state']])
     if len(thost._rows):
         print Colors.WARNING + '[WARNING]' + Colors.END
         print thost.get_string(sortby="Hostname")
