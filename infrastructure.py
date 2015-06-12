@@ -202,13 +202,13 @@ def show_projects_usage():
     t.align['Project'] = 'l'
     for res in result['project']:
         if (
-            int(res['cputotal']) > int(res['cpulimit']) or int(res['cputotal']) < 0 or
-            int(res['memorytotal']) > int(res['memorylimit']) or int(res['memorytotal']) < 0 or
-            int(res['primarystoragetotal']) > int(res['primarystoragelimit']) or int(res['primarystoragetotal']) < 0 or
-            int(res['secondarystoragetotal']) > int(res['secondarystoragelimit']) or int(res['secondarystoragetotal']) < 0 or
-            int(res['templatetotal']) > int(res['templatelimit']) or int(res['templatetotal']) < 0 or
-            int(res['vmtotal']) > int(res['vmlimit']) or int(res['vmtotal']) < 0 or
-            int(res['volumetotal']) > int(res['volumelimit']) or int(res['volumetotal']) < 0
+            int(res['cputotal']) >= int(res['cpulimit']) or int(res['cputotal']) < 0 or
+            int(res['memorytotal']) >= int(res['memorylimit']) or int(res['memorytotal']) < 0 or
+            int(res['primarystoragetotal']) >= int(res['primarystoragelimit']) or int(res['primarystoragetotal']) < 0 or
+            int(res['secondarystoragetotal']) >= int(res['secondarystoragelimit']) or int(res['secondarystoragetotal']) < 0 or
+            int(res['templatetotal']) >= int(res['templatelimit']) or int(res['templatetotal']) < 0 or
+            int(res['vmtotal']) >= int(res['vmlimit']) or int(res['vmtotal']) < 0 or
+            int(res['volumetotal']) >= int(res['volumelimit']) or int(res['volumetotal']) < 0
         ):
             c_init = Colors.FAIL
         else:
