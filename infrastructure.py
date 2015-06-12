@@ -253,6 +253,9 @@ def show_clusters_usage():
             elif (r['type'] == 3):
                 # Allocated Storage
                 threshold = float(conf.get('pool.storage.allocated.capacity.disablethreshold')['value'])
+            elif (r['type'] == 9):
+                # Local Storage | in this case threshold is notification
+                threshold = float(conf.get('cluster.localStorage.capacity.notificationthreshold')['value'])
             else:
                 threshold = 1
 
