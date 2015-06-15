@@ -13,12 +13,6 @@ from ConfigParser import SafeConfigParser
 LOG = logging.getLogger(__name__)
 
 
-projectid="e3d3b266-f5f3-4b1c-a663-1944f53f113f"
-zoneid="3858ea76-d143-498a-8cf7-975324a60b14"
-templateid="fc28b5f8-ca07-4a24-85d4-c4fa158668a3"
-hypervisor="XenServer"
-serviceofferingid="84353183-e347-4443-9e5f-9ab078e4ba03"
-iptonetworklist_networkid="5be43741-63ca-4c31-aeb2-68262bc5695b"
 
 
 # projectid="0179062b-6b56-4695-8f0e-3b56b1c9399c"
