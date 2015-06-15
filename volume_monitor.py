@@ -55,6 +55,7 @@ class VolumeMonitor(object):
         self.api = options.get("api")
         self.table_all_volumes = PrettyTable(["ID", "ACCOUNT_ID", "NAME", "UUID", "PATH", "POOL_ID", "TEMPLATE_ID", "INSTANCE_ID", "REMOVED"])
         self.table_absent_volumes = PrettyTable(["ID", "ACCOUNT_ID", "NAME", "UUID", "PATH", "POOL_ID", "TEMPLATE_ID", "INSTANCE_ID", "REMOVED"])
+        self.list_ids_to_update = [] #list of ids with wrong values
         self.project_account_id = None
         self.project_accounts_ids = {}
         self._is_zumbi_volume_found = False
@@ -140,6 +141,7 @@ class VolumeMonitor(object):
                         if not volume:
                             #print "\t volume %s does not exist!" % uuid
                             self.table_absent_volumes.add_row(colums)
+                            self.list_ids_to_update.append(id)
                             total_volume_absent += 1
                             if not self._is_zumbi_volume_found:
                                 self._is_zumbi_volume_found = True
@@ -182,7 +184,9 @@ class VolumeMonitor(object):
 
     def get_vdi_list(self):
         print "\n\n\n"
-        print self.table_absent_volumes.get_string(fields=["UUID"])
+        print self.table_absent_volumes.get_string(fields=["PATH"])
+        print "\n\n"
+        print self.list_ids_to_update
 
     def run(self):
         self.get_project_accounts()
