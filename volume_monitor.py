@@ -241,6 +241,9 @@ if __name__ == "__main__":
     if send_email:
         email_to = args.email_to
         email_from = args.email_from
+        if not email_from:
+            print "You did not specify the email_from option"
+            sys.exit(1)
 
     api = CloudStack(api_url, apikey, secretkey, verifysslcert)
     options = {"api": api,
