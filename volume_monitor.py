@@ -53,8 +53,8 @@ class VolumeMonitor(object):
         self.db_database = DB_DATABASE
         self.db_connection = None
         self.api = options.get("api")
-        self.table_all_volumes = PrettyTable(["ID", "ACCOUNT_ID", "NAME", "UUID", "PATH", "POOL_ID", "TEMPLATE_ID", "INSTANCE_ID", "REMOVED"])
-        self.table_absent_volumes = PrettyTable(["ID", "ACCOUNT_ID", "NAME", "UUID", "PATH", "POOL_ID", "TEMPLATE_ID", "INSTANCE_ID", "REMOVED"])
+        self.table_all_volumes = PrettyTable(["ID", "ACCOUNT_ID", "NAME", "UUID", "PATH", "INSTANCE_ID", "REMOVED", "CREATED", "STATE"])
+        self.table_absent_volumes = PrettyTable(["ID", "ACCOUNT_ID", "NAME", "UUID", "PATH", "INSTANCE_ID", "REMOVED", "CREATED", "STATE"])
         self.list_ids_to_update = [] #list of ids with wrong values
         self.project_account_id = None
         self.project_accounts_ids = {}
@@ -94,7 +94,7 @@ class VolumeMonitor(object):
 
     def get_computed_volumes_query(self, account_id=None):
 
-        query = ("select v.id, v.account_id, v.name, v.uuid, v.path, v.pool_id, v.template_id, v.instance_id, v.removed "
+        query = ("select v.id, v.account_id, v.name, v.uuid, v.path, v.instance_id, v.removed, v.created, v.state "
         "from cloud.volumes as v "
         "where v.account_id = %s "
         "and (v.path is not null or v.state in ('Allocated')) "
@@ -132,8 +132,8 @@ class VolumeMonitor(object):
                 cursor.execute(query)
                 total_volume_absent = 0
                 try:
-                    for (id, account_id, name, uuid, path, pool_id, template_id, instance_id, removed) in cursor:
-                        colums = [id, "%s(%s)" % (account_id, project_details["name"]), name, uuid, path, pool_id, template_id, instance_id, removed]
+                    for (id, account_id, name, uuid, path, instance_id, removed, created, state) in cursor:
+                        colums = [id, "%s(%s)" % (account_id, project_details["name"]), name, uuid, path, instance_id, removed, created, state]
                         self.table_all_volumes.add_row(colums)
 
                         #check if volume exists
