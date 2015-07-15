@@ -13,6 +13,7 @@ from my_email import MyEmail
 from networkapiclient.Pagination import Pagination
 from networkapiclient.Equipamento import Equipamento
 from networkapiclient.Ip import Ip
+from networkapiclient.exception import IpNaoExisteError
 from networkapiclient.Vip import Vip
 
 logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', level=logging.DEBUG)
@@ -30,24 +31,42 @@ class NetworkApi(object):
 
 
 class GloboNetworkIp(object):
+    """
+        #find the vip_id <vip_id> = Equipamento.get_real_related(<equip_id>)
+
+        #find the ip_id <ip_id> = Ip.get_ipv4_or_ipv6('<ip>')
+
+        #remove the real Vip.remover_real(<vip_id>, <ip_id>, <equip_id>)
+    """
 
     def __init__(self, ip=None, state=None, removed=None, network_api=None):
-        self.ip = ip
+        self.ip = dict(address=ip, id=None)
         self.state = state
         self.removed = removed
         self.network_api = network_api
-        self.equipamento = {}
+        self.equipamento = dict(name=None, id=None, vlan=None)
+
+        self.get_ip_id()
+        self.get_equipamento()
 
     def get_equipamento(self):
         pagination = Pagination(0, 25, "", "", "")
         equipamento_ = Equipamento(self.network_api.url, self.network_api.username, self.network_api.password)
 
-        result = equipamento_.find_equips(None, None, None, None, None, self.ip, pagination)
+        result = equipamento_.find_equips(None, None, None, None, None, self.ip["address"], pagination)
         equip = result.get('equipamento',[])
         if equip:
-            name = equip[0]['nome']
-            id = equip[0]['id']
-            self.equipamento = {"name":name, "id": id}
+            self.equipamento["name"] = equip[0]['nome']
+            self.equipamento["id"] = equip[0]['id']
+            self.equipamento["vlan"] = equip[0]['ips'][0]['vlan']
+
+    def get_ip_id(self):
+        ip_ = Ip(self.network_api.url, self.network_api.username, self.network_api.password)
+        try:
+            result = ip_.get_ipv4_or_ipv6(self.ip["address"])
+            self.ip["id"] = result['ips']['id']
+        except IpNaoExisteError, e:
+            LOG.warning("ip %s not found", self.ip["address"])
 
     def __str__(self):
         return self.__unicode__()
@@ -70,7 +89,7 @@ class GloboNetworkIpCleaner(object):
         self.db_database = DB_DATABASE
         self.db_connection = None
         self.api = options.get("api")
-        self.table_expunging_ips = PrettyTable(["IP", "STATE", "REMOVED"])
+        self.table_expunging_ips = PrettyTable(["IP", "EQUIPAMENTO", "VLAN"])
         self._region = options.get("region", "")
 
 
@@ -130,15 +149,10 @@ class GloboNetworkIpCleaner(object):
         globo_network_ips = self.get_expunging_ips()
 
         for globo_network_ip in globo_network_ips:
-
-            #find the equipment for a given ip
-            globo_network_ip.get_equipamento()
-            LOG.debug("globo_network_ip: %s", globo_network_ip)
-            #find the vip_id <vip_id> = Equipamento.get_real_related(<equip_id>)
-
-            #fint the ip_id <ip_id> = Ip.get_ipv4_or_ipv6('<ip>')
-
-            #remove the real Vip.remover_real(<vip_id>, <ip_id>, <equip_id>)
+            column = ("%s:%s" % (globo_network_ip.ip["address"],globo_network_ip.ip["id"]),
+                      "%s:%s" % (globo_network_ip.equipamento["name"],globo_network_ip.equipamento["id"]),
+                      globo_network_ip.equipamento["vlan"])
+            self.table_expunging_ips.add_row(column)
 
         print self.table_expunging_ips
 
