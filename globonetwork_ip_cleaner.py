@@ -45,8 +45,9 @@ class GloboNetworkIp(object):
         self.removed = removed
         self.network_api = network_api
         self.equipamento = dict(name=None, id=None, vlan=None)
+        self.vips = []
 
-        self.get_ip_id()
+        self.get_ip()
         self.get_equipamento()
 
     def get_equipamento(self):
@@ -60,7 +61,20 @@ class GloboNetworkIp(object):
             self.equipamento["id"] = equip[0]['id']
             self.equipamento["vlan"] = equip[0]['ips'][0]['vlan']
 
-    def get_ip_id(self):
+            #get vip
+            result = equipamento_.get_real_related(self.equipamento["id"])
+            vips = result["vips"]
+            if isinstance(vips, list): #is list?
+                for vip_ in vips:
+                    id_vip = vip_.get('id_vip')
+                    if id_vip not in self.vips:
+                        self.vips.append(id_vip)
+            else:
+                id_vip = vips.get('id_vip')
+                if id_vip not in self.vips:
+                    self.vips.append(id_vip)
+
+    def get_ip(self):
         ip_ = Ip(self.network_api.url, self.network_api.username, self.network_api.password)
         try:
             result = ip_.get_ipv4_or_ipv6(self.ip["address"])
@@ -72,7 +86,11 @@ class GloboNetworkIp(object):
         return self.__unicode__()
 
     def __unicode__(self):
-        return u"ip: %s | state: %s | removed: %s | equipamento: %s" % (self.ip, self.state, self.removed, self.equipamento)
+        return u"ip: %s | state: %s | removed: %s | equipamento: %s | vip_id: %s " % (self.ip,
+                                                                                      self.state,
+                                                                                      self.removed,
+                                                                                      self.equipamento,
+                                                                                      self.vips)
 
 class GloboNetworkIpCleaner(object):
     def __init__(self, options={}):
@@ -89,7 +107,7 @@ class GloboNetworkIpCleaner(object):
         self.db_database = DB_DATABASE
         self.db_connection = None
         self.api = options.get("api")
-        self.table_expunging_ips = PrettyTable(["IP", "EQUIPAMENTO", "VLAN"])
+        self.table_expunging_ips = PrettyTable(["IP", "EQUIPAMENTO", "VLAN", "VIPS"])
         self._region = options.get("region", "")
 
 
@@ -126,7 +144,6 @@ class GloboNetworkIpCleaner(object):
         results = []
         network_api = NetworkApi(url=self.networkapi_url, username=self.networkapi_username, password=self.networkapi_password)
         for (private_ip_address, state, removed) in cursor:
-            colums = (private_ip_address, state, removed)
             results.append(GloboNetworkIp(ip=private_ip_address, state=state, removed=removed, network_api=network_api))
 
         cursor.close()
@@ -151,7 +168,8 @@ class GloboNetworkIpCleaner(object):
         for globo_network_ip in globo_network_ips:
             column = ("%s:%s" % (globo_network_ip.ip["address"],globo_network_ip.ip["id"]),
                       "%s:%s" % (globo_network_ip.equipamento["name"],globo_network_ip.equipamento["id"]),
-                      globo_network_ip.equipamento["vlan"])
+                      globo_network_ip.equipamento["vlan"],
+                      ",".join(globo_network_ip.vips))
             self.table_expunging_ips.add_row(column)
 
         print self.table_expunging_ips
