@@ -11,6 +11,7 @@ import traceback
 from ConfigParser import SafeConfigParser
 from my_email import MyEmail
 
+logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', level=logging.DEBUG)
 LOG = logging.getLogger(__name__)
 
 DB_DATABASE = "cloud"
@@ -198,15 +199,21 @@ if __name__ == "__main__":
             sys.exit("There is no 'apikey' option in '%s' section" % args.region)
         if not parser.has_option(args.region, 'secretkey'):
             sys.exit("There is no 'secretkey' option in '%s' section" % args.region)
+        if not parser.has_option(args.region, 'db_host'):
+            sys.exit("There is no 'db_host' option in '%s' section" % args.region)
+        if not parser.has_option(args.region, 'db_user'):
+            sys.exit("There is no 'db_user' option in '%s' section" % args.region)
+        if not parser.has_option(args.region, 'db_password'):
+            sys.exit("There is no 'db_password' option in '%s' section" % args.region)
 
         apikey = parser.get(args.region, 'apikey')
         api_url = parser.get(args.region, 'url')
         secretkey = parser.get(args.region, 'secretkey')
         verifysslcert = parser.getboolean(args.region, 'verifysslcert')
+
         db_host = parser.get(args.region, 'db_host')
         db_user = parser.get(args.region, 'db_user')
         db_password = parser.get(args.region, 'db_password')
-
 
     else:
         sys.exit("Invalid region: '%s'" % args.region)
