@@ -63,7 +63,7 @@ class GloboNetworkIp(object):
 
             #get vip
             result = equipamento_.get_real_related(self.equipamento["id"])
-            vips = result["vips"]
+            vips = result["vips"]   
             if isinstance(vips, list): #is list?
                 for vip_ in vips:
                     id_vip = vip_.get('id_vip')
