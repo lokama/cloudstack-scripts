@@ -10,6 +10,10 @@ import time
 import traceback
 from ConfigParser import SafeConfigParser
 from my_email import MyEmail
+from networkapiclient.Pagination import Pagination
+from networkapiclient.Equipamento import Equipamento
+from networkapiclient.Ip import Ip
+from networkapiclient.Vip import Vip
 
 logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', level=logging.DEBUG)
 LOG = logging.getLogger(__name__)
@@ -17,9 +21,49 @@ LOG = logging.getLogger(__name__)
 DB_DATABASE = "cloud"
 
 
+class NetworkApi(object):
+
+    def __init__(self, url=None, username=None, password=None):
+        self.url = url
+        self.username = username
+        self.password = password
+
+
+class GloboNetworkIp(object):
+
+    def __init__(self, ip=None, state=None, removed=None, network_api=None):
+        self.ip = ip
+        self.state = state
+        self.removed = removed
+        self.network_api = network_api
+        self.equipamento = {}
+
+    def get_equipamento(self):
+        pagination = Pagination(0, 25, "", "", "")
+        equipamento_ = Equipamento(self.network_api.url, self.network_api.username, self.network_api.password)
+
+        result = equipamento_.find_equips(None, None, None, None, None, self.ip, pagination)
+        equip = result.get('equipamento',[])
+        if equip:
+            name = equip[0]['nome']
+            id = equip[0]['id']
+            self.equipamento = {"name":name, "id": id}
+
+    def __str__(self):
+        return self.__unicode__()
+
+    def __unicode__(self):
+        return u"ip: %s | state: %s | removed: %s | equipamento: %s" % (self.ip, self.state, self.removed, self.equipamento)
+
 class GloboNetworkIpCleaner(object):
     def __init__(self, options={}):
 
+        #networkapi
+        self.networkapi_url = options.get("networkapi_url")
+        self.networkapi_username = options.get("networkapi_username")
+        self.networkapi_password = options.get("networkapi_password")
+
+        #db
         self.db_host = options.get("db_host")
         self.db_user = options.get("db_user")
         self.db_password = options.get("db_password")
@@ -60,14 +104,16 @@ class GloboNetworkIpCleaner(object):
         self.open_connection()
         cursor = self.db_connection.cursor()
         cursor.execute(query)
-        result = []
+        results = []
+        network_api = NetworkApi(url=self.networkapi_url, username=self.networkapi_username, password=self.networkapi_password)
         for (private_ip_address, state, removed) in cursor:
-            result.append((private_ip_address, state, removed))
+            colums = (private_ip_address, state, removed)
+            results.append(GloboNetworkIp(ip=private_ip_address, state=state, removed=removed, network_api=network_api))
 
         cursor.close()
         self.close_connection()
 
-        return result
+        return results
 
 
     def notify_email(self):
@@ -81,8 +127,18 @@ class GloboNetworkIpCleaner(object):
 
 
     def run(self):
-        results = self.get_expunging_ips()
-        LOG.debug(results)
+        globo_network_ips = self.get_expunging_ips()
+
+        for globo_network_ip in globo_network_ips:
+
+            #find the equipment for a given ip
+            globo_network_ip.get_equipamento()
+            LOG.debug("globo_network_ip: %s", globo_network_ip)
+            #find the vip_id <vip_id> = Equipamento.get_real_related(<equip_id>)
+
+            #fint the ip_id <ip_id> = Ip.get_ipv4_or_ipv6('<ip>')
+
+            #remove the real Vip.remover_real(<vip_id>, <ip_id>, <equip_id>)
 
         print self.table_expunging_ips
 
@@ -159,7 +215,10 @@ if __name__ == "__main__":
                "send_mail": send_email,
                "email_to": email_to,
                "email_from": email_from,
-               "region": args.region}
+               "region": args.region,
+               "networkapi_url": networkapi_url,
+               "networkapi_username": networkapi_username,
+               "networkapi_password": networkapi_password,}
 
     ip_cleaner = GloboNetworkIpCleaner(options=options)
     ip_cleaner.run()
