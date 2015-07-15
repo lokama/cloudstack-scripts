@@ -2,3 +2,8 @@ prettytable==0.7.2
 MySQL-python==1.2.5
 mysql-connector-python==1.2.3
 requests==2.4.1
+GloboNetworkAPI==0.4.4
+--extra-index-url=https://artifactory.globoi.com/artifactory/pypi/
+--extra-index-url=https://artifactory.globoi.com/artifactory/api/pypi/pypi/simple
+--extra-index-url=https://pypi.python.org
+--allow-external
