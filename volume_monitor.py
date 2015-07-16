@@ -142,19 +142,20 @@ class VolumeMonitor(object):
             except Exception, e:
                 print e
 
-        if self._is_zumbi_volume_found and self.send_email:
+        if self._is_zumbi_volume_found:
             print "ZUMBI volumes found!!! Sending email!"
-            self._email_body.append("\n")
             self.notify_email()
 
     def notify_email(self):
-        self._email_body.append(self.table_absent_volumes.get_html_string())
-        body = "<br/>".join(self._email_body)
-        my_email = MyEmail(to=self.email_to,
-                from_=self.email_from,
-                subject=self._email_subject,
-                body=body)
-        my_email.send()
+        if self.send_email:
+            self._email_body.append("\n")
+            self._email_body.append(self.table_absent_volumes.get_html_string(attributes={"border": "1", "style": "width:100%"}))
+            body = "<br/>".join(self._email_body)
+            my_email = MyEmail(to=self.email_to,
+                    from_=self.email_from,
+                    subject=self._email_subject,
+                    body=body)
+            my_email.send()
 
     def get_vdi_list(self):
         print "\n\n\n"
