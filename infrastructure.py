@@ -193,10 +193,11 @@ def load_network_map_by_project_and_account():
             for n in result['network']:
                 network_map[n['id']] = 'project-' + actpj['name']
     # get network from accounts
-    for netact in ntws.get_detail(**{'listall': 'true'}):
-        if 'account' not in netact:
-            netact['account'] = 'N/A'
-        network_map[netact['id']] = 'account-' + netact['account']
+    if ntws.get_detail(**{'listall': 'true'}):
+        for netact in ntws.get_detail(**{'listall': 'true'}):
+            if 'account' not in netact:
+                netact['account'] = 'N/A'
+            network_map[netact['id']] = 'account-' + netact['account']
     return network_map
 
 
