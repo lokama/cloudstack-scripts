@@ -466,27 +466,30 @@ def show_networks():
     t = PrettyTable(['Account', 'Project', 'Name', 'Status', 'ID', 'Network Domain', 'CIDR', 'Zone'])
 
     # public networks
-    for netact in ntws.get_detail(**{'listall': 'true'}):
-        if 'account' not in netact:
-            netact['account'] = 'N/A'
-        if 'ip6cidr' in netact:
-            cidr = netact['ip6cidr']
-        elif 'cidr' in netact:
-            cidr = netact['cidr']
-        if 'networkdomain' not in netact:
-            netact['networkdomain'] = 'N/A'
-        project = 'N/A'
+    if ntws.get_detail(**{'listall': 'true'}):
+        for netact in ntws.get_detail(**{'listall': 'true'}):
+            if 'account' not in netact:
+                netact['account'] = 'N/A'
+            if 'ip6cidr' in netact:
+                cidr = netact['ip6cidr']
+            elif 'cidr' in netact:
+                cidr = netact['cidr']
+            if 'networkdomain' not in netact:
+                netact['networkdomain'] = 'N/A'
+            project = 'N/A'
 
-        # if there is no account AND no project something is wrong
-        if netact['account'] == 'N/A':
-            c_init = Colors.FAIL
-        elif 'SANITY' in netact['name'].upper() or netact['state'] not in expected_network_state:
-            c_init = Colors.WARNING
-        else:
-            c_init = ''
+            # if there is no account AND no project something is wrong
+            if netact['account'] == 'N/A':
+                c_init = Colors.FAIL
+            elif 'SANITY' in netact['name'].upper() or netact['state'] not in expected_network_state:
+                c_init = Colors.WARNING
+            else:
+                c_init = ''
 
-        t.add_row([c_init + netact['account'], project, netact['name'], netact['state'], netact['id'],
-                  netact['networkdomain'], cidr, netact['zonename'] + Colors.END])
+            t.add_row([c_init + netact['account'], project, netact['name'], netact['state'], netact['id'],
+                      netact['networkdomain'], cidr, netact['zonename'] + Colors.END])
+    else:
+        netact = {}
 
     if 'project' in pjts:
         for actpj in pjts['project']:
@@ -506,13 +509,16 @@ def show_networks():
                     else:
                         cidr = 'N/A'
                     if (
-                        netact['state'] not in expected_network_state or
+                        # netact['state'] not in expected_network_state or
                         'SANITY' in actpj['name'].upper() or
                         n['state'] not in expected_network_state
                     ):
                         c_init = Colors.WARNING
                     else:
                         c_init = ''
+                    # check account networks
+                    if 'state' in netact and netact['state'] not in expected_network_state:
+                        c_init = Colors.WARNING
                     t.add_row([c_init + account, actpj['name'], n['name'], n['state'], n['id'],
                               n['networkdomain'], cidr, n['zonename'] + Colors.END])
 
