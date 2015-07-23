@@ -324,6 +324,8 @@ def show_vrs():
                 c_init = ''
             t.add_row([c_init + rtr['name'], rtr['state'], rtr['zonename'], rtr['hostname'], rtr['version'],
                       pjt, ntw_name, rtr['networkdomain'], rtr['linklocalip'], ip_addr, ntw_id + Colors.END])
+        
+        print "Number of VR(s): ", t.rowcount
         return t.get_string(sortby="Version", reversesort=True)
     else:
         sys.exit("There is no VR's in this region")
@@ -366,6 +368,8 @@ def show_loadbalancers():
                         additional_network.append(str(ntw.get_detail(id=adt_network, **{param_type: project_id})[0]['name']))
                 t.add_row([lb[lst_type], lb['state'], lb['name'], lb['publicip'], network_details['cidr'],
                           network_details['name'], network_details['networkdomain'], additional_network])
+
+    print "Number of LB(s): ", t.rowcount
     return t.get_string(sortby=lst_type.capitalize())
 
 
@@ -386,6 +390,8 @@ def show_ssvms(alertonly=0):
         t.add_row([c_init + ssvm['name'], agent_status['host'][0]['version'], ssvm['state'],
                   agent_status['host'][0]['state'], ssvm['systemvmtype'], ssvm['zonename'],
                   ssvm['hostname'] + Colors.END])
+
+    print "Number of SSVM(s): ", t.rowcount
     return t.get_string(sortby="Zone")
 
 
@@ -425,6 +431,8 @@ def show_userdata():
     #add total values in table
     for project_name, total in userdata_per_project_map.items():
         total_user_table.add_row([project_name, total/1024])
+
+    print "Number of VM(s) using userdata: ", t.rowcount
     return (t.get_string(sortby="Length (bytes)", reversesort=True), total_user_table.get_string(sortby="Length (Kb)",
             reversesort=True))
 
@@ -442,6 +450,8 @@ def show_vms():
                     vm['hostname'] = '-'
                 t.add_row([project_name, vm['name'], vm['id'], vm['state'], vm['hostname'],
                           vm['serviceofferingname'], vm['zonename']])
+
+    print "Number of VM(s): ", t.rowcount
     if args.order:
         return t.get_string(sortby=args.order)
     else:
@@ -505,6 +515,8 @@ def show_networks():
                         c_init = ''
                     t.add_row([c_init + account, actpj['name'], n['name'], n['state'], n['id'],
                               n['networkdomain'], cidr, n['zonename'] + Colors.END])
+
+    print "Number of Network(s): ", t.rowcount
     return t.get_string(sortby='Project')
 
 
