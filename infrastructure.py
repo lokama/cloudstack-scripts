@@ -187,6 +187,8 @@ def load_network_map_by_project_and_account():
     # get network from projects
     if 'project' in pjts:
         for actpj in pjts['project']:
+            if 'name' not in actpj:
+                actpj['name'] = actpj['displaytext']
             result = ntws.get(actpj['id'])
             if len(result) < 1:
                 continue
@@ -324,7 +326,7 @@ def show_vrs():
                 c_init = ''
             t.add_row([c_init + rtr['name'], rtr['state'], rtr['zonename'], rtr['hostname'], rtr['version'],
                       pjt, ntw_name, rtr['networkdomain'], rtr['linklocalip'], ip_addr, ntw_id + Colors.END])
-        
+
         print "Number of VR(s): ", t.rowcount
         return t.get_string(sortby="Version", reversesort=True)
     else:
@@ -493,6 +495,8 @@ def show_networks():
 
     if 'project' in pjts:
         for actpj in pjts['project']:
+            if 'name' not in actpj:
+                actpj['name'] = actpj['displaytext']
             result = ntws.get(actpj['id'])
             if len(result) < 1:
                 continue
