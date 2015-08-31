@@ -183,7 +183,8 @@ class LoadBalancer(object):
         return api.listLoadBalancerRules(kwargs)
 
     def delete(self, **kwargs):
-        return api.deleteLoadBalancerRules(kwargs)
+        return api.deleteLoadBalancerRule(kwargs)
+
 
 def percentage(part, whole):
     return 100 * int(part)/int(whole)
