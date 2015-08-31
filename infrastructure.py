@@ -176,6 +176,15 @@ class Networks(object):
             return result['network']
 
 
+class LoadBalancer(object):
+    'Load Balancer rules'
+
+    def list(self, **kwargs):
+        return api.listLoadBalancerRules(kwargs)
+
+    def delete(self, **kwargs):
+        return api.deleteLoadBalancerRules(kwargs)
+
 def percentage(part, whole):
     return 100 * int(part)/int(whole)
 
