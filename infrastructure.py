@@ -5,6 +5,7 @@ import argparse
 import os
 import sys
 import uuid
+import time
 from ConfigParser import SafeConfigParser
 from ACSConn import CloudStack
 from colors import Colors
@@ -185,6 +186,11 @@ class LoadBalancer(object):
     def delete(self, **kwargs):
         return api.deleteLoadBalancerRule(kwargs)
 
+
+def async_job_result(job_id):
+    while True:
+        api.queryAsyncJobResult(jobid=job_id)
+        time.sleep(2)
 
 def percentage(part, whole):
     return 100 * int(part)/int(whole)
