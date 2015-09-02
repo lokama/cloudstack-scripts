@@ -88,4 +88,7 @@ class CloudStack(SignedAPICall):
         key = command.lower() + "response"
         # if key == 'addiptonicresponse':
         #     key = 'addiptovmnicresponse'
+        if key == 'deletenetworkinglobonetworkresponse':
+            key = 'deletenetworkresponse'
         return json.loads(data)[key]
+        
