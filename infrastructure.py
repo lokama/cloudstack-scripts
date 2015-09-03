@@ -133,6 +133,9 @@ class Projects(object):
             'state':    'Active'
         })
 
+    def delete(self, **kwargs):
+        return api.deleteProject(kwargs)
+
 
 class VMs(object):
     'VMs'
@@ -143,6 +146,9 @@ class VMs(object):
             'projectid':    project_id
         })
         return result
+
+    def delete(self, **kwargs):
+        return api.destroyVirtualMachine(kwargs)
 
 
 class UserData(object):
@@ -176,6 +182,12 @@ class Networks(object):
         if result:
             return result['network']
 
+    def delete(self, **kwargs):
+        return api.deleteNetworkInGloboNetwork(kwargs)
+
+    def list(self, **kwargs):
+        return api.listNetworks(kwargs)
+
 
 class LoadBalancer(object):
     'Load Balancer rules'
@@ -187,10 +199,36 @@ class LoadBalancer(object):
         return api.deleteLoadBalancerRule(kwargs)
 
 
+class Templates(object):
+    'Templates'
+
+    def list(self, **kwargs):
+        return api.listTemplates(kwargs)
+
+    def delete(self, **kwargs):
+        return api.deleteTemplate(kwargs)
+
+
+class ServiceOfferings(object):
+    'Service Offerings'
+
+    def list(self, **kwargs):
+        return api.listServiceOfferings(kwargs)
+
+    def delete(self, **kwargs):
+        return api.deleteServiceOffering(kwargs)
+
+
 def async_job_result(job_id):
     while True:
-        api.queryAsyncJobResult(jobid=job_id)
+        job_result = api.queryAsyncJobResult({'jobid': job_id})
+        if job_result['jobstatus'] == 1:
+            return True
+        elif job_result['jobstatus'] == 2:
+            print "\t\t", job_result['jobresult']['errortext']
+            return False
         time.sleep(2)
+
 
 def percentage(part, whole):
     return 100 * int(part)/int(whole)
