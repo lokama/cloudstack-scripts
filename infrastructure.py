@@ -11,6 +11,10 @@ from ACSConn import CloudStack
 from colors import Colors
 from prettytable import PrettyTable
 
+reload(sys)
+
+sys.setdefaultencoding('utf-8')
+
 parser = argparse.ArgumentParser(description='Check Cloudstack status')
 parser.add_argument('--vm', action="store_true", help='List virtualmachine with ordering option (--order)')
 parser.add_argument('--project', action="store_true", help='Resource usage by projects, ordered by project name')
